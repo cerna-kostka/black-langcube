@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "black_langcube"
+version = "0.1.0"
+description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Martin Vanek", email = "martin.vanek@cerna-kostka.cz"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["langgraph", "workflow", "llm", "langchain", "ai"]
+requires-python = ">=3.9"
+
+dependencies = [
+    "langchain>=0.3.24",
+    "langchain-core>=0.3.56",
+    "langchain-openai>=0.3.8",
+    "langchain-community>=0.3.23",
+    "langgraph>=0.3.7",
+    "langgraph-checkpoint>=2.0.18",
+    "langsmith>=0.3.13",
+    "pydantic>=2.0.0,<3.0.0",
+    "tiktoken>=0.9.0",
+    "typing-extensions>=4.12.2",
+    "openai",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+]
+examples = [
+    "jupyter",
+    "notebook",
+]
+
+[project.urls] #to do, the following URLs are placeholders
+Homepage = "https://github.com/martinv/black-langcube" #aby to bylo veřejné, dali bychom to na github, spíše než na můj účet by se zřídil černokostkový účet... ?
+Repository = "https://github.com/martinv/black-langcube"
+Documentation = "https://github.com/martinv/black-langcube#readme"
+Issues = "https://github.com/martinv/black-langcube/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["black_langcube*"]
+exclude = ["tests*", "examples*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

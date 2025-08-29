@@ -1,0 +1,15 @@
+# Changelog
+
+## [0.0.3] - 2025-07-24
+### Proper library structure
+- Restructured the library layout for better organization
+- Improved module imports and exports
+
+## [0.0.2] - 2025-07-23
+### Examples tuned and file cleanup
+- Updated examples to better reflect usage
+- Removed unused files and directories
+
+## [0.0.1] - 2025-06-30
+### Uploaded
+- First version of extension
