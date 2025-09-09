@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "black_langcube"
-version = "0.1.0"
+version = "0.1.1"
 description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
 readme = "README.md"
 license = "MIT"
@@ -55,11 +55,11 @@ examples = [
     "notebook",
 ]
 
-[project.urls] #to do, the following URLs are placeholders
-Homepage = "https://github.com/martinv/black-langcube" #aby to bylo veřejné, dali bychom to na github, spíše než na můj účet by se zřídil černokostkový účet... ?
-Repository = "https://github.com/martinv/black-langcube"
-Documentation = "https://github.com/martinv/black-langcube#readme"
-Issues = "https://github.com/martinv/black-langcube/issues"
+[project.urls]
+Homepage = "https://github.com/cerna-kostka/black-langcube"
+Repository = "https://github.com/cerna-kostka/black-langcube"
+Documentation = "https://github.com/cerna-kostka/black-langcube#readme"
+Issues = "https://github.com/cerna-kostka/black-langcube/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

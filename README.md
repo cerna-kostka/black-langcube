@@ -20,7 +20,7 @@ pip install black_langcube
 
 ### Development Installation:
 ```bash
-git clone https://github.com/your-username/black-langcube.git # Replace the placeholder
+git clone https://github.com/cerna-kostka/black-langcube.git
 cd black-langcube
 pip install -e .
 ```
@@ -182,7 +182,7 @@ See the `examples/` directory for complete working examples:
 ### Setting up development environment:
 
 ```bash
-git clone https://github.com/your-username/black-langcube.git
+git clone https://github.com/cerna-kostka/black-langcube.git
 cd black-langcube
 pip install -e .[dev]
 ```
@@ -230,4 +230,4 @@ This library is intended to be used within a larger application context. The cod
 
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [LangChain Documentation](https://python.langchain.com/)
-- [Examples and Tutorials](./examples/)
+- [Examples and Tutorials](./src/black_langcube/examples/)
