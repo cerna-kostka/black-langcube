@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-03-16
+### LangChain compatibility update
+- Updated `robust_invoke` imports to support newer LangChain versions
+- Replaced deprecated `langchain.schema.OutputParserException` with `langchain_core.exceptions.OutputParserException`
+- Replaced `pydantic.v1.ValidationError` import with `pydantic.ValidationError`
+
 ## [0.1.1] - 2025-09-09
 ### Project link fixes
 - Fixed project links in the documentation
