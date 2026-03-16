@@ -2,8 +2,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 import time
-from pydantic.v1 import ValidationError
-from langchain.schema import OutputParserException
+from pydantic import ValidationError
+from langchain_core.exceptions import OutputParserException
 import openai
 from langchain_community.callbacks import get_openai_callback
 
