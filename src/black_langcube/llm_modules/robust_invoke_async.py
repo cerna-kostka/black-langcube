@@ -11,7 +11,7 @@ import asyncio
 import logging
 
 import openai
-from langchain.schema import OutputParserException
+from langchain_core.exceptions import OutputParserException
 from langchain_community.callbacks import get_openai_callback
 from pydantic import ValidationError
 
