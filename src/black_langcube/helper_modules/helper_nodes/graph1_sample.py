@@ -5,22 +5,25 @@ any other node may be defined in a similar way to provide custom logic/functiona
 """
 
 import logging
-logger = logging.getLogger(__name__)
+from typing import Literal
 
-from typing import Annotated, Literal
+logger = logging.getLogger(__name__)
 
 
 # ----------------------------------
 #  - define decision making about translation based on "language"
 # ----------------------------------
-def route_translatequestion_or_question2translation(state) -> Literal["translate_question", "question2translation"]:
+def route_translatequestion_or_question2translation(
+    state,
+) -> Literal["translate_question", "question2translation"]:
     logger.info("----- route_translatequestion_or_question2translation -----")
     # If the language starts with "English", we assume no translation is needed
     # and we route to Question2Translation, otherwise we route to TranslateQuestionNode
     if state["language"].startswith("English"):
-        return ["question2translation"] 
-    else: 
+        return ["question2translation"]
+    else:
         return ["translate_question"]
+
 
 # ----------------------------------
 # - pass the question as the translation
@@ -39,6 +42,3 @@ class Question2Translation:
         self.state["question_translation"] = result
         self.logger.info("----- Question2Translation execution completed -----")
         return {"question_translation": result}
-
-
-    

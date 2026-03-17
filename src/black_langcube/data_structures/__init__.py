@@ -11,7 +11,7 @@ from .data_structures import (
 
 __all__ = [
     "Strategies",
-    "Article", 
+    "Article",
     "OutlineItem",
     "Outline",
 ]

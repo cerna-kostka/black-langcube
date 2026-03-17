@@ -14,7 +14,7 @@ from .process import run_workflow_by_id, run_complete_pipeline
 # Expose main components
 __all__ = [
     "BaseGraph",
-    "GraphState", 
+    "GraphState",
     "LLMNode",
     "get_basegraph_classes",
     "run_workflow_by_id",

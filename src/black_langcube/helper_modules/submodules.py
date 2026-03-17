@@ -12,11 +12,12 @@ Functions:
 """
 
 import logging
-logger = logging.getLogger(__name__)
-
 from datetime import datetime
 from pathlib import Path
 from black_langcube.messages.message_end_process import message_end_process
+
+logger = logging.getLogger(__name__)
+
 
 def SessionCreator():
     """
@@ -43,21 +44,23 @@ def SessionCreator():
 
     # Create the folder
     try:
-        folder_name.mkdir(parents=True, exist_ok=True)  # parents=True creates parent dirs if needed
+        folder_name.mkdir(
+            parents=True, exist_ok=True
+        )  # parents=True creates parent dirs if needed
         logger.info(f"Folder '{folder_name}' created successfully!")
         absolute_path = folder_name.resolve()
-        
+
         # Add folder_name to the state
         folder = str(absolute_path)
         return {"folder_name": str(folder)}  # Return folder_name
     except Exception as e:
-        #print(f"An error occurred: {e}")
-        #return {"messages": [""], "folder_name": None}
+        # print(f"An error occurred: {e}")
+        # return {"messages": [""], "folder_name": None}
         logger.critical("Failed to create session folder")
         raise RuntimeError("Failed to create session folder") from e
 
 
-def end_process(user_message, folder_name, language):
+async def end_process(user_message, folder_name, language):
     """
     End the process and generate a message based on the provided language.
     Args:
@@ -81,7 +84,7 @@ def end_process(user_message, folder_name, language):
         logger.error("No language specified for end_process function")
         return "Returning from end_process function due to missing language."
 
-    message = message_end_process(language, folder_name, output_filename=None)
+    message = await message_end_process(language, folder_name, output_filename=None)
     logger.info("Ending the process for folder: %s", folder_name)
 
     return message

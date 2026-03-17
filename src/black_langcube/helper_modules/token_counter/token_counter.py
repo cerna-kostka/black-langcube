@@ -20,7 +20,9 @@ TokenCounter:
 """
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 class TokenCounter:
     def __init__(self, token_keys: list[str]):
@@ -28,7 +30,7 @@ class TokenCounter:
 
     def count_tokens(self, state: dict) -> dict:
 
-        logger.info(f"Counting tokens")
+        logger.info("Counting tokens")
 
         total_tokens_in = sum(
             state.get(key, {}).get("tokens_in", 0) for key in self.token_keys

@@ -1,6 +1,6 @@
 translator_eng = {
     "system": "You are a translator. Translate the input from {language} "
-               "to English if not already written in English."
+    "to English if not already written in English."
 }
 
 translator_usr = {
@@ -13,22 +13,14 @@ relevance = {
 
 is_language = {
     "system": "Identify the language of the provided text. "
-               "Respond with the English name of the language."
+    "Respond with the English name of the language."
 }
 
-theme_analyzer = {
-    "system": "foo"
-}
+theme_analyzer = {"system": "foo"}
 
-keywords = {
-    "system": "Bar",
-    "human": "Baz"
-}
+keywords = {"system": "Bar", "human": "Baz"}
 
-strategy = {
-    "system": "consectetur",
-    "human": "adipiscing elit"
-}
+strategy = {"system": "consectetur", "human": "adipiscing elit"}
 
 article_analyst = {
     "system": "nomen est omen",
@@ -36,18 +28,14 @@ article_analyst = {
 
 outline = {
     "system": "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-                "The output must not contain any explanatory text or comments. Output just the outline itself in JSON format structured according to {outline_format}."
+    "The output must not contain any explanatory text or comments. Output just the outline itself in JSON format structured according to {outline_format}."
 }
 
-text = {
-    "system": "Text. STRICTLY ADHERE to the described format:{chapter_format}"
-}
+text = {"system": "Text. STRICTLY ADHERE to the described format:{chapter_format}"}
 
 check_title = {
     "system": "Identify language of the following input. Answer only with the English name of the language.",
-    "generate_translation_system": "Translate the following text into the specified language."
+    "generate_translation_system": "Translate the following text into the specified language.",
 }
 
-title_abstract = {
-    "system": "dolor sit"           
-}
+title_abstract = {"system": "dolor sit"}

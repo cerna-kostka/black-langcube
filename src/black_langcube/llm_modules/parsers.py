@@ -13,7 +13,6 @@ Parsers:
     - parser_title_abstract: Parses outputs into the TitleAbstract data structure.
 """
 
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.output_parsers import JsonOutputParser
 
 from black_langcube.data_structures.data_structures import (

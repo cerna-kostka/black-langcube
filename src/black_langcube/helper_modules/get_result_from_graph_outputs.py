@@ -14,18 +14,22 @@ Functions:
 
 """
 
+import asyncio
 import logging
-logger = logging.getLogger(__name__)
 import os
 import json
 
+logger = logging.getLogger(__name__)
 
-def get_result_from_graph_outputs(key1, key2, subkey, subsubkey, subfolder_name, filename):
+
+def get_result_from_graph_outputs(
+    key1, key2, subkey, subsubkey, subfolder_name, filename
+):
     """
     Retrieves a specific result from a JSON-formatted file based on the provided keys.
-    This function reads a file line by line, parses JSON objects, and searches for 
-    specific nested keys to extract a value. If the file does not exist, contains 
-    invalid JSON, or the specified keys are not found, appropriate error messages 
+    This function reads a file line by line, parses JSON objects, and searches for
+    specific nested keys to extract a value. If the file does not exist, contains
+    invalid JSON, or the specified keys are not found, appropriate error messages
     are returned.
     Args:
         key1 (str): The primary key to search for in the JSON objects.
@@ -37,7 +41,7 @@ def get_result_from_graph_outputs(key1, key2, subkey, subsubkey, subfolder_name,
     Returns:
         dict or any:
             - If successful, returns the value associated with the specified keys.
-            - If an error occurs (e.g., file not found, invalid JSON, or no matching entry), 
+            - If an error occurs (e.g., file not found, invalid JSON, or no matching entry),
               returns a dictionary with an "error" key and a descriptive error message.
     Errors:
         - {"error": "subfolder_name is not set."}: If `subfolder_name` is not provided.
@@ -58,7 +62,7 @@ def get_result_from_graph_outputs(key1, key2, subkey, subsubkey, subfolder_name,
     if not subfolder_name:
         logger.error("subfolder_name is not set.")
         return {"error": "subfolder_name is not set."}
-    
+
     file_path = os.path.join(subfolder_name, filename)
     answer = None  # This will hold the "result" value once we find it
 
@@ -82,7 +86,7 @@ def get_result_from_graph_outputs(key1, key2, subkey, subsubkey, subfolder_name,
                                     answer = subkey_data.get(subsubkey)
                     except json.JSONDecodeError:
                         # Ignore lines that are not valid JSON
-                        #pass
+                        # pass
                         logger.error(f"Invalid JSON in line: {line}")
                         return {"error": f"Invalid JSON in line: {line}."}
     else:
@@ -91,9 +95,10 @@ def get_result_from_graph_outputs(key1, key2, subkey, subsubkey, subfolder_name,
 
     # If no matching entry was found, answer will remain None
     if answer is None:
-        return {"error": f"No entry found."}
+        return {"error": "No entry found."}
 
     return answer
+
 
 def get_simple_result_from_graph_outputs(key, subfolder_name, filename):
     """
@@ -115,7 +120,7 @@ def get_simple_result_from_graph_outputs(key, subfolder_name, filename):
     if not subfolder_name:
         logger.error("subfolder_name is not set.")
         return {"error": "subfolder_name is not set."}
-    
+
     file_path = os.path.join(subfolder_name, filename)
     answer = None  # This will hold the "result" value once we find it
 
@@ -139,6 +144,28 @@ def get_simple_result_from_graph_outputs(key, subfolder_name, filename):
 
     # If no matching entry was found, answer will remain None
     if answer is None:
-        return {"error": f"No entry found."}
+        return {"error": "No entry found."}
 
     return answer
+
+
+async def get_result_from_graph_outputs_async(
+    key1, key2, subkey, subsubkey, subfolder_name, filename
+):
+    """Async version of get_result_from_graph_outputs. Delegates to a thread pool executor."""
+    return await asyncio.to_thread(
+        get_result_from_graph_outputs,
+        key1,
+        key2,
+        subkey,
+        subsubkey,
+        subfolder_name,
+        filename,
+    )
+
+
+async def get_simple_result_from_graph_outputs_async(key, subfolder_name, filename):
+    """Async version of get_simple_result_from_graph_outputs. Delegates to a thread pool executor."""
+    return await asyncio.to_thread(
+        get_simple_result_from_graph_outputs, key, subfolder_name, filename
+    )

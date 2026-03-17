@@ -5,13 +5,15 @@ any other node may be defined in a similar way to provide custom logic/functiona
 """
 
 import logging
-logger = logging.getLogger(__name__)
-
 import json
 from pathlib import Path
 from langchain_core.runnables import RunnableConfig
 
-from black_langcube.helper_modules.get_result_from_graph_outputs import get_result_from_graph_outputs
+from black_langcube.helper_modules.get_result_from_graph_outputs import (
+    get_result_from_graph_outputs,
+)
+
+logger = logging.getLogger(__name__)
 
 
 # ----------------------------------
@@ -29,13 +31,17 @@ class ImportUtility:
         subfolder_name = Path(self.state["folder_name"]) / "graph4"
 
         try:
-            foo = get_result_from_graph_outputs("foo", "", "foo", "", subfolder_name, "graph4_output.json")
+            foo = get_result_from_graph_outputs(
+                "foo", "", "foo", "", subfolder_name, "graph4_output.json"
+            )
         except (OSError, json.JSONDecodeError) as e:
             self.logger.error("Error getting foo from graph4_output.json")
             raise RuntimeError("Error getting foo from graph4_output.json") from e
-    
+
         try:
-            bar = get_result_from_graph_outputs("bar", "", "baz", "", subfolder_name, "graph4_output.json")
+            bar = get_result_from_graph_outputs(
+                "bar", "", "baz", "", subfolder_name, "graph4_output.json"
+            )
         except (OSError, json.JSONDecodeError) as e:
             self.logger.error("Error getting bar from graph4_output.json")
             raise RuntimeError("Error getting bar from graph4_output.json") from e
@@ -56,20 +62,42 @@ class ImportUtility:
             bar = []
 
         try:
-            user_language = get_result_from_graph_outputs("baz", "", "user_language", "", subfolder_name, "graph4_output.json")
+            user_language = get_result_from_graph_outputs(
+                "baz", "", "user_language", "", subfolder_name, "graph4_output.json"
+            )
         except (OSError, json.JSONDecodeError) as e:
             self.logger.error("Error getting user_language from graph4_output.json")
-            raise RuntimeError("Error getting user_language from graph4_output.json") from e
+            raise RuntimeError(
+                "Error getting user_language from graph4_output.json"
+            ) from e
 
         subfolder_name1 = Path(self.state["folder_name"]) / "graph1"
         try:
             if self.state["language"].startswith("English"):
-                question_translation = get_result_from_graph_outputs("question", "", "question_translation", "", subfolder_name1, "graph1_output.json")
+                question_translation = get_result_from_graph_outputs(
+                    "question",
+                    "",
+                    "question_translation",
+                    "",
+                    subfolder_name1,
+                    "graph1_output.json",
+                )
             else:
-                question_translation = get_result_from_graph_outputs("translate_question", "", "question_translation", "", subfolder_name1, "graph1_output.json")
+                question_translation = get_result_from_graph_outputs(
+                    "translate_question",
+                    "",
+                    "question_translation",
+                    "",
+                    subfolder_name1,
+                    "graph1_output.json",
+                )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.error("Error getting question_translation from graph1_output.json")
-            raise RuntimeError("Error getting question_translation from graph1_output.json") from e
+            self.logger.error(
+                "Error getting question_translation from graph1_output.json"
+            )
+            raise RuntimeError(
+                "Error getting question_translation from graph1_output.json"
+            ) from e
 
         self.logger.info("----- ImportUtility execution completed -----")
 
@@ -82,5 +110,5 @@ class ImportUtility:
             "foo": foo,
             "bar": bar,
             "user_language": user_language,
-            "question_translation": question_translation
-    }
+            "question_translation": question_translation,
+        }

@@ -1,11 +1,11 @@
 import logging
-logger = logging.getLogger(__name__)
-
 import time
+import openai
 from pydantic import ValidationError
 from langchain_core.exceptions import OutputParserException
-import openai
 from langchain_community.callbacks import get_openai_callback
+
+logger = logging.getLogger(__name__)
 
 
 def robust_invoke(chain, extra_input=None, max_retries=3, backoff_factor=65):
@@ -16,7 +16,7 @@ def robust_invoke(chain, extra_input=None, max_retries=3, backoff_factor=65):
       - openai.error.RateLimitError (with exponential backoff)
       - openai.error.OpenAIError
     and returning the required output or a dictionary with 'error' key.
-    
+
     :param chain: A LangChain pipeline, e.g. prompt | llm | parser
     :param input_data: Dictionary of inputs to pass to chain.invoke()
     :param max_retries: Maximum attempts to retry on rate-limit errors
@@ -41,7 +41,7 @@ def robust_invoke(chain, extra_input=None, max_retries=3, backoff_factor=65):
                 "tokens_out": cb.completion_tokens,
                 "tokens_price": cb.total_cost,
             }
-            
+
             return result, tokens
 
         except (OutputParserException, ValidationError) as e:
@@ -56,14 +56,19 @@ def robust_invoke(chain, extra_input=None, max_retries=3, backoff_factor=65):
                 logger.info(f"Retrying in {sleep_time} seconds...")
                 time.sleep(sleep_time)
             else:
-                return {"error": f"Rate limit error after {max_retries} attempts: {str(e)}"}, empty_tokens
+                return {
+                    "error": f"Rate limit error after {max_retries} attempts: {str(e)}"
+                }, empty_tokens
 
         except openai.OpenAIError as e:
             # Any other OpenAI-specific error
             return {"error": f"OpenAI error: {str(e)}"}, empty_tokens
 
     # If we exit the loop for any reason (unlikely without returning), handle gracefully
-    return {"error": "Unknown error or maximum retries reached without success."}, empty_tokens
+    return {
+        "error": "Unknown error or maximum retries reached without success."
+    }, empty_tokens
+
 
 def split_into_chunks(text, chunk_size=90000):
     chunks = []

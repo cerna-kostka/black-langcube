@@ -20,8 +20,8 @@ from dotenv import load_dotenv, find_dotenv
 
 _ = load_dotenv(find_dotenv())  # read local .env file
 
-model_name_low = "gpt-4o-mini" # this by default should be "gpt-4o-mini-2024-07-18" - changes in openAI available model policies should be checked periodically 
-model_name_high = "gpt-4.1" # this by default should be "gpt-4o-2024-08-06" - changes in openAI available model policies should be checked periodically
+model_name_low = "gpt-4o-mini"  # this by default should be "gpt-4o-mini-2024-07-18" - changes in openAI available model policies should be checked periodically
+model_name_high = "gpt-4.1"  # this by default should be "gpt-4o-2024-08-06" - changes in openAI available model policies should be checked periodically
 
 # Model
 llm_low = ChatOpenAI(model=model_name_low)

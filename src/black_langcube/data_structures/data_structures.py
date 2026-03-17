@@ -22,19 +22,18 @@ class Strategies(BaseModel):
 class Article(BaseModel):
     topic: str = Field(description="topic")
     language: str = Field(description="language")
-    ... # Add other fields as necessary
+    ...  # Add other fields as necessary
 
 
 class OutlineItem(BaseModel):
     foo: str = Field(description="foo")
     baz: str = Field(description="baz")
     bar: str = Field(description="bar")
-    ... # Add other fields as necessary
+    ...  # Add other fields as necessary
 
 
 class Outline(BaseModel):
     items: List[OutlineItem] = Field(
         max_items=8,
-        description="List of sections in the outline with a maximum of 8 items"
+        description="List of sections in the outline with a maximum of 8 items",
     )
-

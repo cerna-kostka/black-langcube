@@ -1,19 +1,17 @@
-from black_langcube.helper_modules.get_result_from_graph_outputs import get_simple_result_from_graph_outputs
+from black_langcube.helper_modules.get_result_from_graph_outputs import (
+    get_simple_result_from_graph_outputs_async,
+)
 
 
-def message_translator_en(language, subfolder, output_filename):
+async def message_translator_en(language, subfolder, output_filename):
     """
     Returns a message for graph1 workflow based on the language and refining questions.
     """
-    translation_out = get_simple_result_from_graph_outputs(
-        "translation_output",
-        subfolder,
-        output_filename
+    translation_out = await get_simple_result_from_graph_outputs_async(
+        "translation_output", subfolder, output_filename
     )
-    tokens_out = get_simple_result_from_graph_outputs(
-        "translation_tokens",
-        subfolder,
-        output_filename
+    tokens_out = await get_simple_result_from_graph_outputs_async(
+        "translation_tokens", subfolder, output_filename
     )
     message = translation_out, tokens_out
 

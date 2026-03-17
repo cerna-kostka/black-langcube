@@ -16,13 +16,11 @@ Methods:
 """
 
 import logging
-logger = logging.getLogger(__name__)
-
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from black_langcube.llm_modules.llm_model import llm_low
 from black_langcube.llm_modules.LLMNodes.LLMNode import LLMNode
 from black_langcube.prompts.prompts import translator_usr
+
+logger = logging.getLogger(__name__)
+
 
 class TranslatorUsrNode(LLMNode):
     def __init__(self, state, config):
@@ -33,17 +31,26 @@ class TranslatorUsrNode(LLMNode):
         Generate messages for translation.
         """
         messages = [
-            ("system", translator_usr["system"].format(language=self.state.get("language", "English"))),
+            (
+                "system",
+                translator_usr["system"].format(
+                    language=self.state.get("language", "English")
+                ),
+            ),
             ("human", self.state.get("translation_input", "")),
         ]
         return messages
 
-    def execute(self, extra_input=None):
+    async def execute(self, extra_input=None):
         self.logger.info("----- Executing TranslatorUsrNode -----")
         self.state["translation_input"] = extra_input.get("translation_input")
         self.state["language"] = extra_input.get("language")
-        result, tokens = self.run_chain(extra_input=extra_input)
-        
+        result, tokens = await self.run_chain(extra_input=extra_input)
+
         self.logger.info("----- TranslatorUsrNode execution completed -----")
 
-        return {"translation_output": result, "translation_tokens": tokens, "language": self.state.get("language")}
+        return {
+            "translation_output": result,
+            "translation_tokens": tokens,
+            "language": self.state.get("language"),
+        }

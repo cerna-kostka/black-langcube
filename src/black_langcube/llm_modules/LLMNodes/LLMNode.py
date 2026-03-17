@@ -26,7 +26,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from black_langcube.llm_modules.llm_model import default_llm
-from black_langcube.llm_modules.robust_invoke import robust_invoke
+from black_langcube.llm_modules.robust_invoke_async import robust_invoke_async
 
 
 class LLMNode:
@@ -48,15 +48,14 @@ class LLMNode:
         """Return the output parser. Subclasses can override if needed."""
         return StrOutputParser()
 
-    def run_chain(self, extra_input=None):
+    async def run_chain(self, extra_input=None):
         """Prepare the chain with messages, LLM, and parser."""
         messages = self.generate_messages()
         prompt = ChatPromptTemplate.from_messages(messages)
-        chain =  prompt | self.get_llm() | self.get_parser()
-        result, tokens = robust_invoke(chain, extra_input)
+        chain = prompt | self.get_llm() | self.get_parser()
+        result, tokens = await robust_invoke_async(chain, extra_input)
         return result, tokens
 
-    def execute(self, extra_input=None):
-        result, tokens = self.run_chain(extra_input)
+    async def execute(self, extra_input=None):
+        result, tokens = await self.run_chain(extra_input)
         return result, tokens
-        

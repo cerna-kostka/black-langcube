@@ -27,27 +27,36 @@ Note:
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from langgraph.graph import START, END
 
-#from ..graph_base import BaseGraph, GraphState  # import removed to avoid circular import issues
-from black_langcube.llm_modules.LLMNodes.subgraphs.translator_usr_subgraph import TranslatorUsrNode
-from black_langcube.messages.subgraphs.message_translator_usr import message_translator_usr
+# from ..graph_base import BaseGraph, GraphState  # import removed to avoid circular import issues
+from black_langcube.llm_modules.LLMNodes.subgraphs.translator_usr_subgraph import (
+    TranslatorUsrNode,
+)
 from black_langcube.helper_modules.get_basegraph_classes import get_basegraph_classes
 
+logger = logging.getLogger(__name__)
 
-class TranslatorUsrState(get_basegraph_classes()[1]): # getting GraphState from BaseGraph
+
+class TranslatorUsrState(
+    get_basegraph_classes()[1]
+):  # getting GraphState from BaseGraph
     translation_input: str
     translation_output: str
     translation_tokens: dict
 
-class TranslatorUsrSubgraf(get_basegraph_classes()[0]): # getting BaseGraph from get_basegraph_classes
+
+class TranslatorUsrSubgraf(
+    get_basegraph_classes()[0]
+):  # getting BaseGraph from get_basegraph_classes
     def __init__(self, config, subfolder=None):
-        super().__init__(TranslatorUsrState, user_message=None, folder_name=subfolder, language=None)
+        super().__init__(
+            TranslatorUsrState, user_message=None, folder_name=subfolder, language=None
+        )
         self.state = TranslatorUsrState()
         self.config = config
         self.build_graph()
-    
+
     def build_graph(self):
         # Instantiate the workflow nodes
         TranslatorUsrNode_instance = TranslatorUsrNode(self.state, self.config)
@@ -62,10 +71,16 @@ class TranslatorUsrSubgraf(get_basegraph_classes()[0]): # getting BaseGraph from
     def workflow_name(self):
         return "translator_usr_subgraf"
 
-    def run(self, extra_input=None):
+    async def run(self, extra_input=None):
         logger.info("--- Starting TranslatorUsrSubgraf workflow ---")
-        events = self.graph_streaming(extra_input or {}, recursion_limit=10)
-        subfolder = self.write_events_to_file(events, self.output_filename)
-        message = message_translator_usr(self.state.get("language"), subfolder, self.output_filename)
+        events = await self.graph_streaming(extra_input or {}, recursion_limit=10)
+        subfolder = await self.write_events_to_file(events, self.output_filename)
+        from black_langcube.messages.subgraphs.message_translator_usr import (
+            message_translator_usr,
+        )
+
+        message = await message_translator_usr(
+            self.state.get("language"), subfolder, self.output_filename
+        )
         logger.info("--- TranslatorUsrSubgraf workflow completed ---")
         return message

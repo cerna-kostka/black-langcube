@@ -7,4 +7,5 @@ def get_basegraph_classes():
         tuple: A tuple containing the BaseGraph and GraphState classes.
     """
     from black_langcube.graf.graph_base import BaseGraph, GraphState
+
     return BaseGraph, GraphState

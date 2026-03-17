@@ -4,6 +4,7 @@ from langchain_community.callbacks import get_openai_callback
 
 from black_langcube.llm_modules.llm_model import llm_low
 
+
 def CheckTitleRelevance(title, topic):
     """
     Check if the given article title is relevant to the specified topic.
@@ -16,7 +17,10 @@ def CheckTitleRelevance(title, topic):
         str: 'Yes' if the title is relevant to the topic, otherwise 'No'.
     """
     messages = [
-        ("human", "Is article called '{title}' relevant for topic '{topic}' ? Answer Yes/No only:"),
+        (
+            "human",
+            "Is article called '{title}' relevant for topic '{topic}' ? Answer Yes/No only:",
+        ),
     ]
     prompt = ChatPromptTemplate.from_messages(messages)
 

@@ -16,26 +16,33 @@ Functions:
 """
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 def create_token_counter_node(token_keys, workflow_prefix):
     """
     Returns a node function that uses the provided token_keys and workflow_prefix.
-    
+
     The returned function takes (state, config) and returns a dict with token counts keyed by workflow_prefix.
-    
+
     Example output:
       {
           "graph1_tokens_in": ...,
           "graph1_tokens_out": ...,
           "graph1_tokens_price": ...
-      } 
+      }
     """
 
-    logger.info(f"Creating token counter node with prefix: {workflow_prefix} and keys: {token_keys}")
+    logger.info(
+        f"Creating token counter node with prefix: {workflow_prefix} and keys: {token_keys}"
+    )
 
     def token_counter_node(state, config):
-        from black_langcube.helper_modules.token_counter.token_counter import TokenCounter  # import TokenCounter here if needed
+        from black_langcube.helper_modules.token_counter.token_counter import (
+            TokenCounter,
+        )  # import TokenCounter here if needed
+
         counter = TokenCounter(token_keys)
         result = counter.count_tokens(state)
         return {
@@ -43,4 +50,5 @@ def create_token_counter_node(token_keys, workflow_prefix):
             f"{workflow_prefix}_tokens_out": result["tokens_out"],
             f"{workflow_prefix}_tokens_price": result["tokens_price"],
         }
+
     return token_counter_node

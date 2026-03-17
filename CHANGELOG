@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0] - 2026-03-17
+### Full async upgrade
+- Added `llm_modules/robust_invoke_async.py` — async version of `robust_invoke` using `chain.ainvoke` and `asyncio.sleep`
+- Upgraded `LLMNode.run_chain()` and `LLMNode.execute()` to `async def`
+- Upgraded `translator_en_subgraph.py` and `translator_usr_subgraph.py` `execute()` to `async def`
+- Upgraded `graph_base.py`: `graph_streaming()` uses `graph.astream()`, `write_events_to_file()` uses `aiofiles`, `get_language()`, `get_message()`, `run_base()`, and `run()` all `async def`; added `session_id` parameter to `__init__`
+- Upgraded all three subgrafs (`translator_en`, `translator_usr`, `message_translator`) `run()` to `async def`
+- Upgraded all message functions (`message_graph1–5`, `compose_message`, `message_end_process`, subgraph message functions) to `async def`
+- Added `get_result_from_graph_outputs_async` and `get_simple_result_from_graph_outputs_async` wrappers (via `asyncio.to_thread`) to `get_result_from_graph_outputs.py`
+- Upgraded `submodules.py` `end_process()` to `async def`
+- Upgraded `graf1.py`–`graf5.py` mock implementations: `time.sleep` → `asyncio.sleep`, sync file I/O → `aiofiles`, `run()` → `async def`
+- Upgraded `process.py`: all public and private functions (`run_workflow_by_id`, `_run_graph1–5`, `run_complete_pipeline`, `cleanup_session`) → `async def`
+- Upgraded all examples (`basic_workflow.py`, `library_usage.py`, `custom_llm_node.py`, `translation_workflow.py`) to use `async def` and `asyncio.run()`
+- Added `aiofiles` to package dependencies in `pyproject.toml`
+
 ## [0.1.2] - 2026-03-16
 ### LangChain compatibility update
 - Updated `robust_invoke` imports to support newer LangChain versions
