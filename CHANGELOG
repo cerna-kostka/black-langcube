@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.1] - 2026-03-18
+### Minor fixes and improvements
+- Updated `pyproject.toml` version to `0.2.1`
+
 ## [0.2.0] - 2026-03-17
 ### Full async upgrade
 - Added `llm_modules/robust_invoke_async.py` — async version of `robust_invoke` using `chain.ainvoke` and `asyncio.sleep`
