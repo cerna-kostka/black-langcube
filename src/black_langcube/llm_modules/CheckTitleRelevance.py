@@ -2,7 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.callbacks import get_openai_callback
 
-from black_langcube.llm_modules.llm_model import llm_low
+from black_langcube.llm_modules.llm_model import get_llm_low
 
 
 def CheckTitleRelevance(title, topic):
@@ -24,7 +24,7 @@ def CheckTitleRelevance(title, topic):
     ]
     prompt = ChatPromptTemplate.from_messages(messages)
 
-    chain = prompt | llm_low | StrOutputParser()
+    chain = prompt | get_llm_low() | StrOutputParser()
 
     with get_openai_callback() as cb:
         result = chain.invoke({"title": title, "topic": topic})

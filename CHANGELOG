@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2] - 2026-04-03
+### Fix: lazy LLM instantiation — no API key required at import time
+- Replaced module-level `ChatOpenAI(...)` calls in `llm_model.py` with lazy singleton factory functions `get_llm_low()` and `get_llm_high()`; instances are created only on first use
+- Converted `default_llm`, `llm_analyst`, `llm_outline`, `llm_text`, `llm_check_title`, and `llm_title_abstract` from module-level instance aliases to thin wrapper functions
+- Updated `LLMNodes/LLMNode.py`: imports `get_llm_low` and calls it in `get_llm()` instead of referencing the former module-level `default_llm`
+- Updated `CheckTitleRelevance.py`: imports `get_llm_low` and calls it at chain construction time instead of binding the former module-level `llm_low`
+- `import black_langcube` now succeeds without `OPENAI_API_KEY` being set
+
 ## [0.2.1] - 2026-03-18
 ### Minor fixes and improvements
 - Updated `pyproject.toml` version to `0.2.1`

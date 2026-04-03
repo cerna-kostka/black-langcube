@@ -25,7 +25,7 @@ import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from black_langcube.llm_modules.llm_model import default_llm
+from black_langcube.llm_modules.llm_model import get_llm_low
 from black_langcube.llm_modules.robust_invoke_async import robust_invoke_async
 
 
@@ -42,7 +42,7 @@ class LLMNode:
 
     def get_llm(self):
         """Return the appropriate language model. Subclasses can override this if needed."""
-        return default_llm  # or appropriate llm instance
+        return get_llm_low()  # or appropriate llm instance
 
     def get_parser(self):
         """Return the output parser. Subclasses can override if needed."""

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "black_langcube"
-version = "0.2.1"
+version = "0.2.2"
 description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
 readme = "README.md"
 license = "MIT"
