@@ -9,7 +9,7 @@ __description__ = "A framework for building LLM applications with LangGraph"
 from .graf.graph_base import BaseGraph, GraphState
 from .llm_modules.LLMNodes.LLMNode import LLMNode
 from .helper_modules.get_basegraph_classes import get_basegraph_classes
-from .process import run_workflow_by_id, run_complete_pipeline
+from .process import run_workflow_by_id, run_complete_pipeline, run_parallel_pipeline
 
 # Expose main components
 __all__ = [
@@ -19,4 +19,5 @@ __all__ = [
     "get_basegraph_classes",
     "run_workflow_by_id",
     "run_complete_pipeline",
+    "run_parallel_pipeline",
 ]
