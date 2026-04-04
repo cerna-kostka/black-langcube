@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "black_langcube"
-version = "0.2.2"
+version = "0.3.0"
 description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
 readme = "README.md"
 license = "MIT"
@@ -31,7 +31,7 @@ dependencies = [
     "langchain-core>=0.3.56",
     "langchain-openai>=0.3.8",
     "langchain-community>=0.3.23",
-    "langgraph>=0.3.7",
+    "langgraph>=0.5.0",
     "langgraph-checkpoint>=2.0.18",
     "langsmith>=0.3.13",
     "pydantic>=2.0.0,<3.0.0",

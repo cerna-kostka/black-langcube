@@ -6,6 +6,7 @@ different workflow graphs based on input parameters. It serves as
 the central entry point for running various LangGraph workflows.
 """
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
@@ -218,6 +219,75 @@ async def run_complete_pipeline(
             break
 
     return results
+
+
+async def run_parallel_pipeline(
+    graphs: list,
+) -> Dict[str, Any]:
+    """Run a list of independent graph instances concurrently using ``asyncio.gather``.
+
+    Each element in *graphs* must be an object that exposes an async ``run()``
+    method — typically a subclass of :class:`~black_langcube.graf.graph_base.BaseGraph`.
+    All graphs are dispatched simultaneously and their results are collected
+    once every graph has finished.
+
+    This function makes no assumptions about the internal state or output
+    format of the graphs; callers are responsible for constructing each graph
+    with the appropriate parameters before passing them here.
+
+    Args:
+        graphs (list): Sequence of graph instances to run in parallel.  At
+            least one graph must be provided.
+
+    Returns:
+        Dict[str, Any]: A mapping with the following keys:
+
+            * ``"parallel_results"`` — list with one entry per graph (in the
+              same order as *graphs*).  Each entry is either the value returned
+              by ``graph.run()`` or an ``{"error": <message>}`` dict when
+              that graph raised an exception.
+            * ``"total_graphs"`` — number of graphs that were scheduled.
+            * ``"status"`` — ``"completed"`` when all graphs succeeded,
+              ``"partial_failure"`` when at least one raised an exception.
+
+    Raises:
+        ValueError: When *graphs* is empty.
+
+    Example::
+
+        from black_langcube.process import run_parallel_pipeline
+
+        graph_a = MyGraph("message A", "output/a", "English")
+        graph_b = MyGraph("message B", "output/b", "English")
+
+        result = await run_parallel_pipeline([graph_a, graph_b])
+        print(result["parallel_results"])
+    """
+    if not graphs:
+        raise ValueError("At least one graph must be provided to run_parallel_pipeline")
+
+    logger.info(f"Running {len(graphs)} graphs in parallel")
+
+    error_indices: set = set()
+
+    async def _run_one(graph, index: int) -> Any:
+        try:
+            return await graph.run()
+        except Exception as exc:
+            error_indices.add(index)
+            logger.error(
+                f"Graph {index} ({getattr(graph, 'workflow_name', index)}) "
+                f"failed: {exc}"
+            )
+            return {"error": str(exc)}
+
+    raw_results = await asyncio.gather(*(_run_one(g, i) for i, g in enumerate(graphs)))
+
+    return {
+        "parallel_results": list(raw_results),
+        "total_graphs": len(graphs),
+        "status": "partial_failure" if error_indices else "completed",
+    }
 
 
 async def cleanup_session(folder_name: str) -> bool:

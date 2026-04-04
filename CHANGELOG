@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] - 2026-04-04
+### Feature: parallel fan-out (scatter-gather) support
+- Added `BaseGraph.add_parallel_nodes(source_node, branch_nodes, merge_node, router_fn=None)` — wires a LangGraph `Send`-based fan-out from one node to a list of branch nodes that execute concurrently, followed by a merge/aggregation node; an optional `router_fn` controls per-branch state
+- Added `from langgraph.types import Send` import to `graph_base.py`; requires `langgraph>=0.5.0` (the `Send` API is available from the 0.5.x series; verified with 0.5.3)
+- Added `run_parallel_pipeline(graphs)` to `process.py` — runs a list of independent `BaseGraph` instances concurrently via `asyncio.gather`; returns status, per-graph results, and a `"partial_failure"` status when any graph raises
+- Exported `run_parallel_pipeline` from the top-level `black_langcube` package (`__init__.py` and `__all__`)
+- Added `src/black_langcube/examples/parallel_fanout_workflow.py` — end-to-end example demonstrating both intra-graph fan-out (with `Annotated[list, operator.add]` reducer state) and pipeline-level parallelism
+- Added `tests/test_parallel_fanout.py` with 12 tests covering: fan-out dispatch, reducer accumulation, custom router, sequential regression, pipeline success/failure/ordering, and import smoke tests
+- Updated `README.md` with a "Parallel Fan-Out" section including state setup, graph wiring, custom router, and pipeline-level parallelism examples
+- All existing sequential workflows and tests continue to pass without modification
+
 ## [0.2.2] - 2026-04-03
 ### Fix: lazy LLM instantiation — no API key required at import time
 - Replaced module-level `ChatOpenAI(...)` calls in `llm_model.py` with lazy singleton factory functions `get_llm_low()` and `get_llm_high()`; instances are created only on first use

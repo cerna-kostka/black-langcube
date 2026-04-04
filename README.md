@@ -200,7 +200,97 @@ black .
 isort .
 ```
 
-## 📋 Requirements
+## Parallel Fan-Out (Scatter-Gather)
+
+`BaseGraph` exposes `add_parallel_nodes` for wiring an intra-graph fan-out: a single node dispatches to multiple branches that run **concurrently** (via LangGraph's `Send` API), and a merge node aggregates their results.
+
+### State setup
+
+Use `operator.add` (or any reducer) with `Annotated` so that concurrent branches can each append to the same list field without overwriting each other:
+
+```python
+import operator
+from typing import Annotated
+from black_langcube.graf.graph_base import GraphState
+
+class FanOutState(GraphState):
+    topic: str
+    branch_results: Annotated[list, operator.add]  # reducer – each branch appends
+    merged_summary: str
+```
+
+### Graph wiring
+
+```python
+from langgraph.graph import START, END
+from black_langcube.graf.graph_base import BaseGraph
+
+class MyFanOutGraph(BaseGraph):
+    def __init__(self, topic, folder, language="English"):
+        super().__init__(FanOutState, topic, folder, language)
+        self._topic = topic
+        self._build()
+
+    def _build(self):
+        def prepare(state):
+            return {}                                   # fan-out source
+
+        def branch_a(state):
+            return {"branch_results": [f"A: {state['topic']}"]}
+
+        def branch_b(state):
+            return {"branch_results": [f"B: {state['topic']}"]}
+
+        def merge(state):
+            return {"merged_summary": " | ".join(state["branch_results"])}
+
+        self.add_node("prepare", prepare)
+        self.add_node("branch_a", branch_a)
+        self.add_node("branch_b", branch_b)
+        self.add_node("merge", merge)
+
+        self.add_edge(START, "prepare")
+        # Wire fan-out → concurrent branches → merge
+        self.add_parallel_nodes("prepare", ["branch_a", "branch_b"], "merge")
+        self.add_edge("merge", END)
+
+    @property
+    def workflow_name(self):
+        return "my_fanout"
+```
+
+A custom `router_fn` can be supplied to control what state each branch
+receives:
+
+```python
+from langgraph.types import Send
+
+def router(state):
+    return [
+        Send("branch_a", {**state, "mode": "fast"}),
+        Send("branch_b", {**state, "mode": "thorough"}),
+    ]
+
+self.add_parallel_nodes("prepare", ["branch_a", "branch_b"], "merge", router_fn=router)
+```
+
+### Pipeline-level parallelism
+
+To run **independent** graph instances simultaneously, use `run_parallel_pipeline`:
+
+```python
+import asyncio
+from black_langcube import run_parallel_pipeline
+
+graph_a = MyFanOutGraph("topic A", "output/a")
+graph_b = MyFanOutGraph("topic B", "output/b")
+
+results = asyncio.run(run_parallel_pipeline([graph_a, graph_b]))
+# results["status"]           → "completed" | "partial_failure"
+# results["parallel_results"] → [result_a, result_b]
+```
+
+See `src/black_langcube/examples/parallel_fanout_workflow.py` for a fully working end-to-end example.
 
 - Python 3.9+
 - LangChain >= 0.3.24
@@ -220,7 +310,7 @@ This is a work in progress and contributions are welcome! Please feel free to:
 
 ## 📄 License
 
-MIT License (MIT) 
+MIT License (MIT)
 
 ## ⚠️ Note
 

@@ -39,6 +39,7 @@ from pathlib import Path
 
 import aiofiles
 from langgraph.graph import StateGraph
+from langgraph.types import Send
 from typing_extensions import TypedDict
 
 from black_langcube.helper_modules.get_result_from_graph_outputs import (
@@ -74,6 +75,59 @@ class BaseGraph:
 
     def add_conditional_edges(self, from_node, condition_callable):
         self.workflow.add_conditional_edges(from_node, condition_callable)
+
+    def add_parallel_nodes(self, source_node, branch_nodes, merge_node, router_fn=None):
+        """Wire a fan-out from *source_node* to *branch_nodes* with a subsequent *merge_node*.
+
+        Uses LangGraph's ``Send`` API so that all branches are dispatched
+        concurrently.  After every branch finishes its node function, control
+        flows to *merge_node* where results can be aggregated.
+
+        Args:
+            source_node (str): Name of the node that triggers the fan-out.
+                Its node function must be added separately via ``add_node``.
+            branch_nodes (list[str]): Names of the nodes to run in parallel.
+                Each must already be added via ``add_node``.
+            merge_node (str): Name of the node that collects results from all
+                branches.  Must already be added via ``add_node``.
+            router_fn (callable | None): Optional function ``(state) ->
+                list[Send]`` that controls what state each branch receives.
+                When *None*, every branch receives an unmodified copy of the
+                current state (i.e. the full graph state is broadcast to all
+                branches).
+
+        Example::
+
+            def fan_out_node(state):
+                return {"items": state["items"]}
+
+            def branch_a(state):
+                return {"parallel_results": [f"A: {state['items']}"]}
+
+            def branch_b(state):
+                return {"parallel_results": [f"B: {state['items']}"]}
+
+            def merge_node(state):
+                return {"merged": state["parallel_results"]}
+
+            self.add_node("fan_out", fan_out_node)
+            self.add_node("branch_a", branch_a)
+            self.add_node("branch_b", branch_b)
+            self.add_node("merge", merge_node)
+            self.add_edge(START, "fan_out")
+            self.add_parallel_nodes("fan_out", ["branch_a", "branch_b"], "merge")
+            self.add_edge("merge", END)
+        """
+        if router_fn is None:
+
+            def _router(state):
+                return [Send(branch, state) for branch in branch_nodes]
+
+            router_fn = _router
+
+        self.workflow.add_conditional_edges(source_node, router_fn)
+        for branch in branch_nodes:
+            self.workflow.add_edge(branch, merge_node)
 
     def compile(self):
         """
