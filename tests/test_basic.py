@@ -4,6 +4,7 @@ Updated for the new src layout structure.
 """
 
 import sys
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -23,7 +24,11 @@ class TestLibraryStructure(unittest.TestCase):
 
             self.assertTrue(hasattr(black_langcube, "__version__"))
             self.assertTrue(hasattr(black_langcube, "__description__"))
-            self.assertEqual(black_langcube.__version__, "0.1.0")
+            pyproject = tomllib.loads(
+                (project_root / "pyproject.toml").read_text()
+            )
+            expected_version = pyproject["project"]["version"]
+            self.assertEqual(black_langcube.__version__, expected_version)
         except ImportError as e:
             self.fail(f"Failed to import main package: {e}")
 
