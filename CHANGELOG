@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2] - 2026-04-05
+### Feature: fail-fast configuration validation
+- Added `black_langcube/config.py` containing `ConfigurationError(Exception)`, `get_api_key(env_var)`, and `validate_config()`
+- `ConfigurationError` is a dedicated exception class that signals misconfiguration, distinct from runtime errors
+- `get_api_key(env_var)` reads an environment variable, wraps the value in `pydantic.SecretStr` (preventing accidental leakage via `str()`, `repr()`, or logging), and raises `ConfigurationError` if the variable is absent or empty
+- `validate_config()` calls `get_api_key()` for every variable in `REQUIRED_ENV_VARS` (`["OPENAI_API_KEY"]`), collects all failures, and raises a single `ConfigurationError` listing every missing variable; it is idempotent and safe to call multiple times
+- The library never calls `sys.exit()` — configuration validation raises an exception; handling it (e.g. printing to stderr and exiting) is the consuming application's responsibility
+- Updated `llm_modules/llm_model.py`: `get_llm_low()` and `get_llm_high()` now pass `openai_api_key=get_api_key("OPENAI_API_KEY")` explicitly to `ChatOpenAI`, giving a clear `ConfigurationError` on first LLM use instead of an obscure OpenAI client error
+- Exported `validate_config` and `ConfigurationError` from `black_langcube/__init__.py` and `__all__`
+- Added `tests/test_config.py` with 17 tests covering: `ConfigurationError` class properties, `get_api_key()` for absent/empty/valid env vars, `SecretStr` non-leakage via `str()` and `repr()`, `validate_config()` for missing/empty/valid env, idempotency, aggregated error messages, and public API exports
+- Added a "Fail-Fast Validation" subsection to `README.md` documenting `validate_config()` usage and the recommended startup pattern
+- Added a "Validate Configuration" step to the development setup in `DEVELOPMENT.md` documenting `validate_config()`, `ConfigurationError`, and `SecretStr` behaviour
+
 ## [0.3.1] - 2026-04-05
 ### Fix: consistent log severity policy and `getLogger(__name__)` usage
 - Added `import logging` and `logger = logging.getLogger(__name__)` to `llm_modules/llm_model.py` and `llm_modules/CheckTitleRelevance.py`, which previously had no logger

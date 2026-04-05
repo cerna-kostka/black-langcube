@@ -91,9 +91,7 @@ class ImportUtility:
                     "graph1_output.json",
                 )
         except (OSError, json.JSONDecodeError) as e:
-            logger.error(
-                "Error getting question_translation from graph1_output.json"
-            )
+            logger.error("Error getting question_translation from graph1_output.json")
             raise RuntimeError(
                 "Error getting question_translation from graph1_output.json"
             ) from e
