@@ -21,6 +21,8 @@ import logging
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv, find_dotenv
 
+from black_langcube.config import get_api_key
+
 logger = logging.getLogger(__name__)
 
 _ = load_dotenv(find_dotenv())  # read local .env file
@@ -36,14 +38,20 @@ _llm_high: ChatOpenAI | None = None
 def get_llm_low() -> ChatOpenAI:
     global _llm_low
     if _llm_low is None:
-        _llm_low = ChatOpenAI(model=model_name_low)
+        _llm_low = ChatOpenAI(
+            model=model_name_low,
+            openai_api_key=get_api_key("OPENAI_API_KEY"),
+        )
     return _llm_low
 
 
 def get_llm_high() -> ChatOpenAI:
     global _llm_high
     if _llm_high is None:
-        _llm_high = ChatOpenAI(model=model_name_high)
+        _llm_high = ChatOpenAI(
+            model=model_name_high,
+            openai_api_key=get_api_key("OPENAI_API_KEY"),
+        )
     return _llm_high
 
 

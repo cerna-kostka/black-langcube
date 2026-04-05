@@ -101,7 +101,32 @@ Main library interface functions:
    LANGCHAIN_TRACING_V2=true
    ```
 
-3. **Run Examples**:
+3. **Validate Configuration**:
+   Consuming applications should call `validate_config()` at startup to detect
+   misconfiguration before any pipeline runs:
+
+   ```python
+   from black_langcube import validate_config, ConfigurationError
+   import sys
+
+   try:
+       validate_config()
+   except ConfigurationError as e:
+       print(f"Configuration error: {e}", file=sys.stderr)
+       sys.exit(1)
+   ```
+
+   `validate_config()` checks all entries in `config.REQUIRED_ENV_VARS` and
+   raises `ConfigurationError` listing every missing variable in one message.
+   The library itself never calls `sys.exit()` — error handling is the
+   caller's responsibility.
+
+   Required variables are read via `get_api_key(env_var)`, which wraps the
+   value in `pydantic.SecretStr` to prevent accidental leakage in logs or
+   tracebacks. The raw value is accessible only via `.get_secret_value()` and
+   should be retrieved only when actually passed to an external client.
+
+4. **Run Examples**:
    ```bash
    cd examples
    python basic_workflow.py

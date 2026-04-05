@@ -168,6 +168,30 @@ LANGCHAIN_API_KEY=your_langchain_api_key_here
 LANGCHAIN_TRACING_V2=true
 ```
 
+### Fail-Fast Validation
+
+Call `validate_config()` at the top of your application entry point to detect
+misconfiguration immediately, before any pipeline execution begins:
+
+```python
+from black_langcube import validate_config, ConfigurationError
+import sys
+
+try:
+    validate_config()
+except ConfigurationError as e:
+    print(f"Configuration error: {e}", file=sys.stderr)
+    sys.exit(1)
+```
+
+`validate_config()` checks every required environment variable and raises
+`ConfigurationError` with a message listing **all** missing variables, so you
+see every problem at once. It is safe to call multiple times (idempotent).
+
+API keys are stored internally as `pydantic.SecretStr`, which prevents the raw
+value from appearing in `str()`, `repr()`, or log output. Call
+`.get_secret_value()` only at the last moment when the key must be used.
+
 ## 📖 Examples
 
 See the `examples/` directory for complete working examples:
