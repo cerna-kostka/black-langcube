@@ -1,8 +1,12 @@
+import logging
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.callbacks import get_openai_callback
 
 from black_langcube.llm_modules.llm_model import get_llm_low
+
+logger = logging.getLogger(__name__)
 
 
 def CheckTitleRelevance(title, topic):

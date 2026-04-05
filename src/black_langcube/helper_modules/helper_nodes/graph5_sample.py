@@ -23,10 +23,9 @@ class ImportUtility:
     def __init__(self, state: dict, config: RunnableConfig):
         self.state = state
         self.config = config
-        self.logger = logging.getLogger(__name__)
 
     def execute(self, extra_input=None):
-        self.logger.info("----- Executing ImportUtility -----")
+        logger.debug("----- Executing ImportUtility -----")
         # Here we would implement the logic for importing the necessary data
         subfolder_name = Path(self.state["folder_name"]) / "graph4"
 
@@ -35,7 +34,7 @@ class ImportUtility:
                 "foo", "", "foo", "", subfolder_name, "graph4_output.json"
             )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.error("Error getting foo from graph4_output.json")
+            logger.error("Error getting foo from graph4_output.json")
             raise RuntimeError("Error getting foo from graph4_output.json") from e
 
         try:
@@ -43,22 +42,22 @@ class ImportUtility:
                 "bar", "", "baz", "", subfolder_name, "graph4_output.json"
             )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.error("Error getting bar from graph4_output.json")
+            logger.error("Error getting bar from graph4_output.json")
             raise RuntimeError("Error getting bar from graph4_output.json") from e
 
         # Check if foo and bar are lists
         if not isinstance(foo, list):
-            self.logger.error("foo is not a list")
+            logger.error("foo is not a list")
             raise ValueError("foo is not a list")
         if not isinstance(bar, list):
-            self.logger.error("bar is not a list")
+            logger.error("bar is not a list")
             raise ValueError("bar is not a list")
         # Check if foo and bar are not empty
         if not foo:
-            self.logger.warning("foo is empty, proceeding with an empty list")
+            logger.warning("foo is empty, proceeding with an empty list")
             foo = []
         if not bar:
-            self.logger.warning("bar is empty, proceeding with an empty list")
+            logger.warning("bar is empty, proceeding with an empty list")
             bar = []
 
         try:
@@ -66,7 +65,7 @@ class ImportUtility:
                 "baz", "", "user_language", "", subfolder_name, "graph4_output.json"
             )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.error("Error getting user_language from graph4_output.json")
+            logger.error("Error getting user_language from graph4_output.json")
             raise RuntimeError(
                 "Error getting user_language from graph4_output.json"
             ) from e
@@ -92,14 +91,14 @@ class ImportUtility:
                     "graph1_output.json",
                 )
         except (OSError, json.JSONDecodeError) as e:
-            self.logger.error(
+            logger.error(
                 "Error getting question_translation from graph1_output.json"
             )
             raise RuntimeError(
                 "Error getting question_translation from graph1_output.json"
             ) from e
 
-        self.logger.info("----- ImportUtility execution completed -----")
+        logger.debug("----- ImportUtility execution completed -----")
 
         self.state["foo"] = foo
         self.state["bar"] = bar

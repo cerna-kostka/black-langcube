@@ -42,12 +42,12 @@ class TranslatorUsrNode(LLMNode):
         return messages
 
     async def execute(self, extra_input=None):
-        self.logger.info("----- Executing TranslatorUsrNode -----")
+        self.logger.debug("----- Executing TranslatorUsrNode -----")
         self.state["translation_input"] = extra_input.get("translation_input")
         self.state["language"] = extra_input.get("language")
         result, tokens = await self.run_chain(extra_input=extra_input)
 
-        self.logger.info("----- TranslatorUsrNode execution completed -----")
+        self.logger.debug("----- TranslatorUsrNode execution completed -----")
 
         return {
             "translation_output": result,

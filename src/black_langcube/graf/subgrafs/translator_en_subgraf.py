@@ -71,7 +71,7 @@ class TranslatorEnSubgraf(
         return "translator_en_subgraf"
 
     async def run(self, extra_input=None):
-        logger.info("--- Starting TranslatorEnSubgraf workflow ---")
+        logger.debug("--- Starting TranslatorEnSubgraf workflow ---")
         events = await self.graph_streaming(extra_input or {}, recursion_limit=10)
         subfolder = await self.write_events_to_file(events, self.output_filename)
         from black_langcube.messages.subgraphs.message_translator_en import (
@@ -81,5 +81,5 @@ class TranslatorEnSubgraf(
         message = await message_translator_en(
             self.state.get("language"), subfolder, self.output_filename
         )
-        logger.info("--- TranslatorEnSubgraf workflow completed ---")
+        logger.debug("--- TranslatorEnSubgraf workflow completed ---")
         return message

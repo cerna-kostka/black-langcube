@@ -72,7 +72,7 @@ async def robust_invoke_async(
             logger.warning(f"Rate limit error: {e}")
             if attempt < max_retries - 1:
                 sleep_time = backoff_factor * attempt
-                logger.info(f"Retrying in {sleep_time} seconds...")
+                logger.debug(f"Retrying in {sleep_time} seconds...")
                 await asyncio.sleep(sleep_time)
             else:
                 return {

@@ -261,7 +261,7 @@ async def run_parallel_pipeline(
         graph_b = MyGraph("message B", "output/b", "English")
 
         result = await run_parallel_pipeline([graph_a, graph_b])
-        print(result["parallel_results"])
+        logger.debug(result["parallel_results"])
     """
     if not graphs:
         raise ValueError("At least one graph must be provided to run_parallel_pipeline")

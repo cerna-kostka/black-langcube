@@ -53,7 +53,7 @@ def robust_invoke(chain, extra_input=None, max_retries=3, backoff_factor=65):
             logger.warning(f"Rate limit error: {e}")
             if attempt < max_retries - 1:
                 sleep_time = backoff_factor * attempt
-                logger.info(f"Retrying in {sleep_time} seconds...")
+                logger.debug(f"Retrying in {sleep_time} seconds...")
                 time.sleep(sleep_time)
             else:
                 return {

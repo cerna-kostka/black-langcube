@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1] - 2026-04-05
+### Fix: consistent log severity policy and `getLogger(__name__)` usage
+- Added `import logging` and `logger = logging.getLogger(__name__)` to `llm_modules/llm_model.py` and `llm_modules/CheckTitleRelevance.py`, which previously had no logger
+- Downgraded all node entry/exit banners (e.g. `"----- Executing … -----"`, `"----- … completed -----"`) from `INFO` to `DEBUG` in `helper_nodes/graph1_sample.py`, `helper_nodes/graph5_sample.py`, `llm_modules/LLMNodes/subgraphs/translator_en_subgraph.py`, `llm_modules/LLMNodes/subgraphs/translator_usr_subgraph.py`, and `helper_modules/submodules.py`
+- Downgraded per-streaming-event banners (`"=== EVENT ==="` / `"============="`) in `graf/graph_base.py` from `INFO` to `DEBUG`
+- Downgraded subgraf workflow start/complete banners in `graf/subgrafs/message_translator_subgraf.py`, `graf/subgrafs/translator_en_subgraf.py`, and `graf/subgrafs/translator_usr_subgraf.py` from `INFO` to `DEBUG`
+- Downgraded retry-sleep messages in `llm_modules/robust_invoke.py` and `llm_modules/robust_invoke_async.py` from `INFO` to `DEBUG`; preceding rate-limit `WARNING` is unchanged
+- Downgraded `"Counting tokens"` in `helper_modules/token_counter/token_counter.py` from `INFO` to `DEBUG`
+- Downgraded token counter node factory message in `helper_modules/token_counter/generic_counter_node.py` from `INFO` to `DEBUG`
+- Downgraded translated component value log in `messages/compose_message.py` from `INFO` to `DEBUG`
+- Downgraded formatted-timestamp detail log in `helper_modules/submodules.py` from `INFO` to `DEBUG`
+- Demoted `logger.critical()` to `logger.error()` for four recoverable error sites in `graf/graph_base.py`: compile failure, workflow streaming failure, event serialisation failure, and file open/create failure; `"Failed to create session folder"` in `helper_modules/submodules.py` remains `CRITICAL`
+- Replaced `print(result["parallel_results"])` in the docstring example of `process.py` with `logger.debug(result["parallel_results"])`
+- Added a **Logging** section to `DEVELOPMENT.md` documenting the severity policy table and the rule against configuring root logger handlers inside library modules
+
 ## [0.3.0] - 2026-04-04
 ### Feature: parallel fan-out (scatter-gather) support
 - Added `BaseGraph.add_parallel_nodes(source_node, branch_nodes, merge_node, router_fn=None)` — wires a LangGraph `Send`-based fan-out from one node to a list of branch nodes that execute concurrently, followed by a merge/aggregation node; an optional `router_fn` controls per-branch state

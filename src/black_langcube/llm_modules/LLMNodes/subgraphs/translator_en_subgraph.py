@@ -38,12 +38,12 @@ class TranslatorEngNode(LLMNode):
         ]
 
     async def execute(self, extra_input=None):
-        self.logger.info("----- Executing TranslatorEngNode -----")
+        self.logger.debug("----- Executing TranslatorEngNode -----")
         self.state["translation_input"] = extra_input.get("translation_input")
         self.state["language"] = extra_input.get("language")
         result, tokens = await self.run_chain(extra_input=extra_input)
 
-        self.logger.info("----- TranslatorEngNode execution completed -----")
+        self.logger.debug("----- TranslatorEngNode execution completed -----")
 
         return {
             "translation_output": result,

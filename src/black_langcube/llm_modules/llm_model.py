@@ -16,8 +16,12 @@ The module provides lazy factory functions for model access so that ChatOpenAI i
 
 from __future__ import annotations
 
+import logging
+
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv, find_dotenv
+
+logger = logging.getLogger(__name__)
 
 _ = load_dotenv(find_dotenv())  # read local .env file
 
