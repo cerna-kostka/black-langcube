@@ -34,7 +34,7 @@ def create_token_counter_node(token_keys, workflow_prefix):
       }
     """
 
-    logger.info(
+    logger.debug(
         f"Creating token counter node with prefix: {workflow_prefix} and keys: {token_keys}"
     )
 

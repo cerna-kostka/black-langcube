@@ -38,7 +38,7 @@ def TokenCostsCount(folder_name):
     It aggregates the token counts from multiple subfolders and writes the results to a file.
     """
 
-    logger.info(f"Calculating token costs for folder: {folder_name}")
+    logger.debug(f"Calculating token costs for folder: {folder_name}")
 
     subfolder1_name = Path(folder_name) / "graph1"
     subfolder2_name = Path(folder_name) / "graph2"

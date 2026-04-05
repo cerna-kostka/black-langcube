@@ -30,7 +30,7 @@ class TokenCounter:
 
     def count_tokens(self, state: dict) -> dict:
 
-        logger.info("Counting tokens")
+        logger.debug("Counting tokens")
 
         total_tokens_in = sum(
             state.get(key, {}).get("tokens_in", 0) for key in self.token_keys

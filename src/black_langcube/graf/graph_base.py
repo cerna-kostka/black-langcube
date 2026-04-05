@@ -136,7 +136,7 @@ class BaseGraph:
         try:
             return self.workflow.compile()
         except Exception as e:
-            logger.critical("Error compiling review subgraph")
+            logger.error("Error compiling review subgraph")
             raise RuntimeError("Error compiling review subgraph") from e
 
     @property
@@ -187,7 +187,7 @@ class BaseGraph:
                 events.append(event)
             return events
         except Exception as e:
-            logger.critical(f"Error running workflow for {self.workflow_name}")
+            logger.error(f"Error running workflow for {self.workflow_name}")
             raise RuntimeError(
                 f"Error running workflow for {self.workflow_name}"
             ) from e
@@ -202,7 +202,7 @@ class BaseGraph:
         try:
             async with aiofiles.open(file_path, "a", encoding="utf-8") as output_file:
                 for s in events:
-                    logger.info("=== EVENT ===")
+                    logger.debug("=== EVENT ===")
                     try:
                         await output_file.write(
                             json.dumps(
@@ -213,15 +213,15 @@ class BaseGraph:
                             + "\n"
                         )
                     except Exception as e:
-                        logger.critical(
+                        logger.error(
                             f"Error writing to '{output_filename}' in {subfolder}"
                         )
                         raise RuntimeError(
                             f"Error writing to '{output_filename}' in {subfolder}"
                         ) from e
-                    logger.info("=============")
+                    logger.debug("=============")
         except OSError as e:
-            logger.critical(
+            logger.error(
                 f"Error creating or opening '{output_filename}' in {subfolder}"
             )
             raise RuntimeError(

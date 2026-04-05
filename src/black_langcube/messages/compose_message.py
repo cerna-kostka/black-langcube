@@ -40,7 +40,7 @@ async def compose_message(language, components, subfolder=None):
                     translated = result[0]
                 else:
                     translated = str(result)
-                logger.info(translated)
+                logger.debug(translated)
                 message_parts.append(translated)
         else:
             if isinstance(comp, dict) and "error" in comp:

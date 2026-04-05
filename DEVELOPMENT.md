@@ -234,3 +234,35 @@ def my_node(state):
     result = subgraf.run(extra_input={"data": state["data"]})
     return {"subgraf_result": result}
 ```
+
+## Logging
+
+### Library logging rule
+
+Every module that emits log messages must obtain its logger with:
+
+```python
+import logging
+logger = logging.getLogger(__name__)
+```
+
+Library modules must **never** call `logging.basicConfig()` or add handlers to the root logger.
+That is the sole responsibility of the consuming application.
+A consumer can silence all routine library output with one line:
+
+```python
+logging.getLogger("black_langcube").setLevel(logging.WARNING)
+```
+
+Example scripts in `src/black_langcube/examples/` are entry-point scripts and may configure
+logging for demonstration purposes — this is expected and intentional.
+
+### Severity policy
+
+| Level | Use for |
+|---|---|
+| `DEBUG` | Routine per-invocation detail: node entry/exit banners, retry sleep messages, token counts, individual streaming events |
+| `INFO` | Successful high-level state transitions: graph completed, session folder created |
+| `WARNING` | Non-fatal unexpected conditions: missing optional config, fallback triggered, empty result list |
+| `ERROR` | Recoverable failures: file not found, invalid JSON line, API error after all retries, language key missing |
+| `CRITICAL` | Unrecoverable / process-threatening failures only (use sparingly; currently only "Failed to create session folder") |

@@ -32,12 +32,12 @@ def SessionCreator():
         RuntimeError: If the folder creation fails for any reason.
     """
 
-    logger.info("----- Session Node -----")
+    logger.debug("----- Session Node -----")
 
     # Get the current time as a formatted string
     formatted_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    logger.info("Formatted Timestamp: %s", formatted_timestamp)
+    logger.debug("Formatted Timestamp: %s", formatted_timestamp)
 
     # Define the folder name
     folder_name = Path("./results") / formatted_timestamp
