@@ -48,6 +48,9 @@ class TextAnalyzerNode(LLMNode):
     Custom LLM node for analyzing text sentiment and extracting key information.
     """
 
+    def __init__(self, state, config, llm=None):
+        super().__init__(state, config, llm=llm)
+
     def generate_messages(self):
         """Generate messages for the LLM."""
         text = self.state.get("input_text", "")
@@ -91,6 +94,9 @@ class SummaryExtractorNode(LLMNode):
     Custom node to extract a concise summary from the analysis.
     """
 
+    def __init__(self, state, config, llm=None):
+        super().__init__(state, config, llm=llm)
+
     def generate_messages(self):
         """Generate messages for summary extraction."""
         analysis = self.state.get("analysis_result", {})
@@ -121,6 +127,9 @@ class SentimentExtractorNode(LLMNode):
     """
     Custom node to extract sentiment classification.
     """
+
+    def __init__(self, state, config, llm=None):
+        super().__init__(state, config, llm=llm)
 
     def generate_messages(self):
         """Generate messages for sentiment extraction."""
@@ -178,13 +187,18 @@ class TextAnalysisWorkflow(BaseGraph):
 
     def build_graph(self):
         """Build the text analysis workflow."""
+        from black_langcube.llm_modules.llm_model import default_llm
+
         logger = logging.getLogger(__name__)
         logger.info("Building text analysis workflow graph...")
 
+        # One LLM instance for this graph — injected into every node
+        low_llm = default_llm()
+
         # Create custom node instances
-        analyzer_node = TextAnalyzerNode(self.state, {})
-        summary_node = SummaryExtractorNode(self.state, {})
-        sentiment_node = SentimentExtractorNode(self.state, {})
+        analyzer_node = TextAnalyzerNode(self.state, {}, llm=low_llm)
+        summary_node = SummaryExtractorNode(self.state, {}, llm=low_llm)
+        sentiment_node = SentimentExtractorNode(self.state, {}, llm=low_llm)
 
         logger.info("Created custom LLM node instances")
 

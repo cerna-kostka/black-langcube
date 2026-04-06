@@ -57,8 +57,13 @@ class MessageTranslatorSubgraf(
         self.build_graph()
 
     def build_graph(self):
+        from black_langcube.llm_modules.llm_model import default_llm
+
+        low_llm = default_llm()
         # Instantiate the workflow nodes
-        TranslatorUsrNode_instance = TranslatorUsrNode(self.state, self.config)
+        TranslatorUsrNode_instance = TranslatorUsrNode(
+            self.state, self.config, llm=low_llm
+        )
         # Add the TranslatorUsrNode to the graph
         self.add_node("translator_usr", TranslatorUsrNode_instance.execute)
 

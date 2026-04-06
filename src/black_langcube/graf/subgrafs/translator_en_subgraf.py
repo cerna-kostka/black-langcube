@@ -58,8 +58,13 @@ class TranslatorEnSubgraf(
         self.build_graph()
 
     def build_graph(self):
+        from black_langcube.llm_modules.llm_model import default_llm
+
+        low_llm = default_llm()
         # Instantiate the workflow nodes
-        TranslatorEngNode_instance = TranslatorEngNode(self.state, self.config)
+        TranslatorEngNode_instance = TranslatorEngNode(
+            self.state, self.config, llm=low_llm
+        )
         # Add the TranslatorEngNode to the graph
         self.add_node("translator_en", TranslatorEngNode_instance.execute)
 

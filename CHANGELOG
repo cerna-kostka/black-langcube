@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.4] - 2026-04-06
+
+### Feature: constructor-level LLM dependency injection
+
+- Modified `LLMNode.__init__` to accept an optional `llm` parameter (`llm=None`); when omitted or `None`, `default_llm()` is called once at construction time and stored as `self.llm` — no factory call is ever made after construction
+- Changed `LLMNode.get_llm()` to return `self.llm` directly; it no longer calls any factory function on each invocation, eliminating implicit coupling to module-level singletons
+- Replaced the `from black_langcube.llm_modules.llm_model import get_llm_low` import in `LLMNode.py` with `from black_langcube.llm_modules.llm_model import default_llm`
+- Updated `TranslatorEngNode.__init__` and `TranslatorUsrNode.__init__` to accept `llm=None` and forward it via `super().__init__(state, config, llm=llm)`; `get_llm()` overrides removed
+- Updated `TextAnalyzerNode`, `SummaryExtractorNode`, and `SentimentExtractorNode` in `examples/custom_llm_node.py` with explicit `__init__(self, state, config, llm=None)` forwarding to `super()`
+- Made `build_graph()` in `TranslatorEnSubgraf`, `TranslatorUsrSubgraf`, and `MessageTranslatorSubgraf` the single LLM injection site: one `default_llm()` call at the top of each method, passed via `llm=` to every node constructor; `default_llm` import is deferred inside `build_graph()` to avoid circular imports
+- Made `TextAnalysisWorkflow.build_graph()` in `examples/custom_llm_node.py` the single injection site for all three node types
+- Confirmed that module-level `_llm_low` / `_llm_high` cached globals no longer exist in `llm_model.py` (removed in v0.2.2); no external code depends on them
+- Added `tests/test_llm_node_injection.py` with 13 tests: `LLMNode` injection mechanics (stored attribute, `get_llm()` return identity, `None` fallback via mocked `default_llm`, two-node isolation), `TranslatorEngNode.execute()` with `FakeListChatModel` (correct output, no factory call), `TranslatorUsrNode.execute()` with `FakeListChatModel` (correct output, no factory call), and singleton-isolation tests across node types; all tests run with no API key and no network call
+- Used `langchain_core.language_models.fake_chat_models.FakeListChatModel` for deterministic test responses (no extra dependency); this is a private submodule — re-evaluate when langchain-core exposes a stable public re-export
+- Updated `CheckTitleRelevance(title, topic, llm=None)` to accept an optional `llm` parameter; falls back to `default_llm()` when `None`; replaced the `get_llm_low` import with `default_llm`
+- All 113 tests pass
+
 ## [0.3.3] - 2026-04-06
 ### Feature: multi-provider LLM factory with SecretStr API key protection
 - Introduced `LLMProvider` (string enum: `OPENAI`, `GEMINI`, `MISTRAL`) and `ModelTier` (string enum: `LOW`, `HIGH`, `ANALYST`, `OUTLINE`, `TEXT`, `CHECK_TITLE`, `TITLE_ABSTRACT`) in `llm_modules/llm_model.py`
