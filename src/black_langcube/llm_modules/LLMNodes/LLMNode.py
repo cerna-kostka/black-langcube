@@ -3,17 +3,19 @@ LLMNode is a base class for nodes that interact with language models in a chain-
 Attributes:
     state (Any): The current state or context for the node.
     config (Any): Configuration parameters for the node.
+    llm (BaseChatModel): The language model instance injected at construction time.
     logger (logging.Logger): Logger instance for the node.
 Methods:
-    __init__(state, config):
-        Initializes the LLMNode with the given state and configuration.
+    __init__(state, config, llm=None):
+        Initializes the LLMNode with the given state, configuration, and optional LLM instance.
+        When ``llm`` is ``None``, the default LLM is created via ``default_llm()``.
     generate_messages():
         Abstract method to return a list of messages for prompt composition.
         Must be implemented by subclasses.
     get_llm():
-        Returns the language model instance to use. Can be overridden by subclasses.
+        Returns the LLM instance stored at construction time.
     get_parser():
-        Returns the output parser for the language model's response. Can be overridden by subclasses.
+        Returns the output parser for the language model's response. Can be overridden if needed.
     run_chain(extra_input=None):
         Prepares and executes the chain using the generated messages, language model, and parser.
         Returns the result and token usage.
@@ -25,14 +27,15 @@ import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from black_langcube.llm_modules.llm_model import get_llm_low
+from black_langcube.llm_modules.llm_model import default_llm
 from black_langcube.llm_modules.robust_invoke_async import robust_invoke_async
 
 
 class LLMNode:
-    def __init__(self, state, config):
+    def __init__(self, state, config, llm=None):
         self.state = state
         self.config = config
+        self.llm = llm if llm is not None else default_llm()
         self.logger = logging.getLogger(__name__)
 
     def generate_messages(self):
@@ -41,8 +44,8 @@ class LLMNode:
         raise NotImplementedError
 
     def get_llm(self):
-        """Return the appropriate language model. Subclasses can override this if needed."""
-        return get_llm_low()  # or appropriate llm instance
+        """Return the LLM instance stored at construction time."""
+        return self.llm
 
     def get_parser(self):
         """Return the output parser. Subclasses can override if needed."""

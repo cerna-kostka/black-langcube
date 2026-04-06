@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class TranslatorEngNode(LLMNode):
-    def __init__(self, state, config):
-        super().__init__(state, config)
+    def __init__(self, state, config, llm=None):
+        super().__init__(state, config, llm=llm)
 
     def generate_messages(self):
         """
