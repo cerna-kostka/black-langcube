@@ -5,6 +5,7 @@ This module provides async-safe invocation of LangChain chains with:
 - Exponential backoff for rate limiting
 - OpenAI API error handling
 - Async sleep for non-blocking delays
+- Async circuit breaker to stop cascading failures on a fully unavailable API
 """
 
 import asyncio
@@ -15,7 +16,14 @@ from langchain_core.exceptions import OutputParserException
 from langchain_community.callbacks import get_openai_callback
 from pydantic import ValidationError
 
+from black_langcube.llm_modules.circuit_breaker_async import (
+    CircuitBreakerOpenError,
+    get_circuit_breaker,
+)
+
 logger = logging.getLogger(__name__)
+
+_SERVICE_NAME = "openai_api"
 
 
 async def robust_invoke_async(
@@ -27,8 +35,14 @@ async def robust_invoke_async(
     Handles:
       - OutputParserException
       - ValidationError
-      - openai.RateLimitError (with exponential backoff using asyncio.sleep)
-      - openai.OpenAIError
+      - openai.RateLimitError (with linear backoff using asyncio.sleep; does not
+        increment the circuit-breaker failure counter)
+      - openai.APIConnectionError / openai.APITimeoutError / openai.InternalServerError
+        (recorded by the circuit breaker; circuit opens after CB_FAILURE_THRESHOLD
+        consecutive such failures)
+      - openai.OpenAIError (other OpenAI errors — not recorded by the circuit breaker)
+      - CircuitBreakerOpenError (circuit is OPEN; returns error dict immediately without
+        invoking the chain)
 
     Args:
         chain: A LangChain pipeline, e.g. prompt | llm | parser
@@ -46,17 +60,20 @@ async def robust_invoke_async(
         "tokens_price": 0,
     }
 
+    circuit_breaker = get_circuit_breaker(_SERVICE_NAME)
+
     for attempt in range(max_retries):
         try:
-            with get_openai_callback() as cb:
-                if hasattr(chain, "ainvoke"):
-                    result = await chain.ainvoke(extra_input)
-                else:
-                    # Fallback to sync invoke in thread pool
-                    loop = asyncio.get_event_loop()
-                    result = await loop.run_in_executor(
-                        None, lambda: chain.invoke(extra_input)
-                    )
+            async with circuit_breaker.call():
+                with get_openai_callback() as cb:
+                    if hasattr(chain, "ainvoke"):
+                        result = await chain.ainvoke(extra_input)
+                    else:
+                        # Fallback to sync invoke in thread pool
+                        loop = asyncio.get_event_loop()
+                        result = await loop.run_in_executor(
+                            None, lambda: chain.invoke(extra_input)
+                        )
 
             tokens = {
                 "tokens_in": cb.prompt_tokens,
@@ -65,10 +82,14 @@ async def robust_invoke_async(
             }
             return result, tokens
 
+        except CircuitBreakerOpenError:
+            return {"error": f"Circuit breaker open: {_SERVICE_NAME}"}, empty_tokens
+
         except (OutputParserException, ValidationError) as e:
             return {"error": str(e)}, empty_tokens
 
         except openai.RateLimitError as e:
+            # Rate-limit errors are transient — do NOT record a circuit failure.
             logger.warning(f"Rate limit error: {e}")
             if attempt < max_retries - 1:
                 sleep_time = backoff_factor * attempt
@@ -78,6 +99,15 @@ async def robust_invoke_async(
                 return {
                     "error": f"Rate limit error after {max_retries} attempts: {str(e)}"
                 }, empty_tokens
+
+        except (
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+            openai.InternalServerError,
+        ) as e:
+            # These errors indicate a structural service failure — the circuit breaker
+            # context manager already recorded the failure in __aexit__; return immediately.
+            return {"error": f"OpenAI error: {str(e)}"}, empty_tokens
 
         except openai.OpenAIError as e:
             return {"error": f"OpenAI error: {str(e)}"}, empty_tokens
