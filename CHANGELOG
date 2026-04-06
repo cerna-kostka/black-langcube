@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.5] - 2026-04-06
+
+### Feature: async circuit breaker to protect LLM API calls
+
+- Added `src/black_langcube/llm_modules/circuit_breaker.py` — synchronous circuit breaker using `threading.Lock` with a three-state machine (`CLOSED`, `OPEN`, `HALF_OPEN`), module-level singleton registry (`get_circuit_breaker()`, `reset_all_circuit_breakers()`), and custom `CircuitBreakerOpenError` exception
+- Added `src/black_langcube/llm_modules/circuit_breaker_async.py` — asynchronous mirror of the above using `asyncio.Lock`; identical public API so callers only choose the right module for their execution context
+- Both modules read `CB_FAILURE_THRESHOLD` (default `5`) and `CB_RECOVERY_TIMEOUT` (default `60`) from environment variables at import time; no magic values in code
+- `openai.RateLimitError` is intentionally excluded from the failure counter (transient client-side throttling, not evidence the service is down); only `openai.APIConnectionError`, `openai.APITimeoutError`, and `openai.InternalServerError` increment the counter and can open the circuit
+- Updated `robust_invoke_async` to wrap chain invocations in the async circuit breaker; `CircuitBreakerOpenError` returns `{"error": "Circuit breaker open: openai_api"}` immediately without invoking the chain or retrying
+- Updated `robust_invoke` (sync) similarly using `circuit_breaker.py`
+- Exported `get_circuit_breaker`, `reset_all_circuit_breakers`, `CircuitBreakerOpenError`, and their async counterparts from `llm_modules/__init__.py` so library consumers can call `reset_all_circuit_breakers()` in their own test suites
+- Added `tests/test_circuit_breaker.py` covering: all three-state transitions (sync and async), rate-limit exclusion, service-error recording, `get_circuit_breaker()` singleton behaviour, `reset_all_circuit_breakers()` isolation, and `robust_invoke_async` short-circuit behaviour (chain is mocked — no API calls)
+- All tests pass
+
 ## [0.3.4] - 2026-04-06
 
 ### Feature: constructor-level LLM dependency injection
