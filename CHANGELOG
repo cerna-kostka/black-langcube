@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3] - 2026-04-06
+### Feature: multi-provider LLM factory with SecretStr API key protection
+- Introduced `LLMProvider` (string enum: `OPENAI`, `GEMINI`, `MISTRAL`) and `ModelTier` (string enum: `LOW`, `HIGH`, `ANALYST`, `OUTLINE`, `TEXT`, `CHECK_TITLE`, `TITLE_ABSTRACT`) in `llm_modules/llm_model.py`
+- Added `MODEL_REGISTRY: dict[LLMProvider, dict[ModelTier, str]]` — a two-level dict mapping every `(provider, tier)` pair to a model name string sourced entirely from environment variables (e.g. `OPENAI_MODEL_LOW`, `GEMINI_MODEL_HIGH`) with sensible hard-coded defaults; adding a new model requires only an env var change, not a code change
+- Implemented `_load_secret(env_var)` helper that wraps environment variable values in `pydantic.SecretStr` and returns `None` when the variable is absent or empty; all three API key module-level constants (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`) are now `SecretStr | None` — no plain `str` key ever lives in the module namespace
+- Added `DEFAULT_PROVIDER: LLMProvider` — read from the `PROVIDER` env var at module load time, defaults to `LLMProvider.OPENAI`
+- Implemented `_resolve_provider(step_env_var)` — reads a per-step override env var (e.g. `ANALYST_PROVIDER`) and falls back to `DEFAULT_PROVIDER`; raises `ValueError` for unrecognised provider strings
+- Implemented `create_llm(provider, tier) -> BaseChatModel` factory — dispatches on `LLMProvider`, instantiates `ChatOpenAI` (OpenAI) or `ChatGoogleGenerativeAI` (Gemini) with the resolved model name and `SecretStr`-protected API key; raises `ValueError` for unsupported providers; provider-specific packages are imported lazily inside each branch so only the active provider's package needs to be installed
+- Rewrote all eight public alias functions (`get_llm_low`, `get_llm_high`, `default_llm`, `llm_analyst`, `llm_outline`, `llm_text`, `llm_check_title`, `llm_title_abstract`) as thin wrappers over `create_llm()`; existing call sites require no changes
+- `MISTRAL` is present in `LLMProvider` and `MODEL_REGISTRY` for forward compatibility; the factory branch for Mistral is not yet wired and raises `ValueError`
+- Added `langchain-google-genai>=2` as an optional dependency under `[project.optional-dependencies] gemini` in `pyproject.toml`; `langchain_google_genai` is imported lazily inside `create_llm()` so OpenAI-only users are not required to install it
+- Exported `LLMProvider` and `ModelTier` from the top-level `black_langcube` package (`__init__.py` and `__all__`)
+- Added `tests/test_llm_model.py` with 44 tests covering: enum values and string subclassing, `MODEL_REGISTRY` completeness and env-var defaults, `_load_secret()` for absent/empty/valid env vars, `SecretStr` non-leakage via `repr()` / `str()` / f-strings, `create_llm()` dispatch for all OpenAI and Gemini tiers with mocked constructors, correct model name forwarding, API key forwarding, `None` key handling, `ValueError` for Mistral and invalid providers, `_resolve_provider()` for step env vars and invalid values, all eight public alias delegation tests, and top-level package export tests; all tests pass with no real API key present
+
 ## [0.3.2] - 2026-04-05
 ### Feature: fail-fast configuration validation
 - Added `black_langcube/config.py` containing `ConfigurationError(Exception)`, `get_api_key(env_var)`, and `validate_config()`

@@ -24,9 +24,7 @@ class TestLibraryStructure(unittest.TestCase):
 
             self.assertTrue(hasattr(black_langcube, "__version__"))
             self.assertTrue(hasattr(black_langcube, "__description__"))
-            pyproject = tomllib.loads(
-                (project_root / "pyproject.toml").read_text()
-            )
+            pyproject = tomllib.loads((project_root / "pyproject.toml").read_text())
             expected_version = pyproject["project"]["version"]
             self.assertEqual(black_langcube.__version__, expected_version)
         except ImportError as e:
