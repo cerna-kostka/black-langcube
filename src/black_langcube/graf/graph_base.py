@@ -59,7 +59,11 @@ logger = logging.getLogger(__name__)
 
 
 class BaseGraph:
-    def __init__(self, state_cls, user_message, folder_name, language, session_id=None):
+    def __init__(
+        self, state_cls, user_message, folder_name=None, language=None, session_id=None
+    ):
+        if not folder_name and not session_id:
+            raise ValueError("Either folder_name or session_id must be provided")
         self.workflow = StateGraph(state_cls)
         self.user_message = user_message
         self.folder_name = folder_name
@@ -159,7 +163,10 @@ class BaseGraph:
     def get_subfolder(self):
         """
         Returns the subfolder path where the output files will be stored.
+        Returns None when folder_name is not set (database mode).
         """
+        if not self.folder_name:
+            return None
         return Path(self.folder_name) / self.workflow_name
 
     def intro_info_check(self):
@@ -167,9 +174,9 @@ class BaseGraph:
         if not self.user_message:
             logger.error("user_message must not be empty")
             raise ValueError("user_message must not be empty")
-        if not self.folder_name:
-            logger.error("folder_name must not be empty")
-            raise ValueError("folder_name must not be empty")
+        if not self.folder_name and not self.session_id:
+            logger.error("Either folder_name or session_id must be provided")
+            raise ValueError("Either folder_name or session_id must be provided")
 
     async def graph_streaming(
         self, initial_state: dict, recursion_limit: int = 10, extra_input=None
@@ -180,8 +187,9 @@ class BaseGraph:
         """
         try:
             events = []
+            state_with_meta = {**initial_state, "graph_name": self.workflow_name}
             async for event in self.graph.astream(
-                initial_state,
+                state_with_meta,
                 {"recursion_limit": recursion_limit, **(extra_input or {})},
             ):
                 events.append(event)
@@ -193,6 +201,8 @@ class BaseGraph:
             ) from e
 
     async def write_events_to_file(self, events, output_filename: str):
+        if not self.folder_name:
+            return None
         # Ensure folder_name is a string by calling it if it's callable.
         folder = self.folder_name() if callable(self.folder_name) else self.folder_name
         subfolder = Path(folder) / self.workflow_name
@@ -301,3 +311,4 @@ class GraphState(TypedDict, total=False):
     folder_name: str
     language: str
     session_id: str
+    graph_name: str
