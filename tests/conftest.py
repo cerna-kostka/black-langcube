@@ -16,11 +16,14 @@ import os
 # Must be set before importing black_langcube.database so that database/config.py
 # reads the in-memory URL at import time.
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+# Prevent config-level failures during test collection on machines without a real key.
+os.environ.setdefault("OPENAI_API_KEY", "test-key-not-real")
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
+from unittest.mock import AsyncMock, patch
 
 from black_langcube.llm_modules.circuit_breaker import (
     reset_all_circuit_breakers as reset_sync,
@@ -69,11 +72,39 @@ async def db_engine():
 
 
 @pytest_asyncio.fixture()
-async def db_session(db_engine):
-    """Yield a fresh AsyncSession for one test; always roll back in ``finally``."""
+async def test_db_session(db_engine):
+    """Canonical per-test async SQLite session with guaranteed rollback.
+
+    Yields an ``AsyncSession`` backed by the shared in-memory SQLite engine.
+    The ``finally`` block rolls back any writes so every test starts with a
+    clean slate.  Table creation is handled by the session-scoped ``db_engine``
+    fixture.
+    """
     session = AsyncSession(db_engine, expire_on_commit=False)
     try:
         yield session
     finally:
         await session.rollback()
         await session.close()
+
+
+# ---------------------------------------------------------------------------
+# LLM mock fixture
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def mock_robust_invoke():
+    """Patch ``robust_invoke_async`` so unit tests never make real API calls.
+
+    Usage::
+
+        async def test_my_node(mock_robust_invoke):
+            mock_robust_invoke.return_value = {"output": "mocked", "tokens": {}}
+            # ... exercise the node under test
+    """
+    with patch(
+        "black_langcube.llm_modules.robust_invoke_async.robust_invoke_async",
+        new_callable=AsyncMock,
+    ) as mock:
+        yield mock

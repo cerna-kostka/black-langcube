@@ -15,6 +15,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # NOTE: FakeListChatModel lives in a private submodule (fake_chat_models) because
 # langchain-core 0.3.x does not re-export it from the public ``fake`` module.
 # Re-evaluate this import path when langchain-core adds a stable public re-export.
@@ -74,6 +76,7 @@ def _translator_usr_state():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestLLMNodeInjection(unittest.TestCase):
     """LLM injection mechanics on the base class."""
 
@@ -127,6 +130,7 @@ class TestLLMNodeInjection(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestTranslatorEngNodeWithFakeLLM(unittest.IsolatedAsyncioTestCase):
     """TranslatorEngNode.execute() produces expected output with a fake LLM."""
 
@@ -169,6 +173,7 @@ class TestTranslatorEngNodeWithFakeLLM(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestTranslatorUsrNodeWithFakeLLM(unittest.IsolatedAsyncioTestCase):
     """TranslatorUsrNode.execute() produces expected output with a fake LLM."""
 
@@ -211,6 +216,7 @@ class TestTranslatorUsrNodeWithFakeLLM(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestLLMSingletonIsolation(unittest.TestCase):
     """Two independently constructed node instances do not share LLM state."""
 
@@ -237,6 +243,53 @@ class TestLLMSingletonIsolation(unittest.TestCase):
         self.assertIsNot(eng_node.llm, usr_node.llm)
         self.assertIs(eng_node.get_llm(), fake_eng)
         self.assertIs(usr_node.get_llm(), fake_usr)
+
+
+# ---------------------------------------------------------------------------
+# Tests: mock_robust_invoke fixture
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestMockRobustInvokeFixture:
+    """Verify mock_robust_invoke intercepts robust_invoke_async at module level.
+
+    The fixture patches ``black_langcube.llm_modules.robust_invoke_async.robust_invoke_async``
+    via the module attribute, so tests must access the function through the module
+    (not a locally-bound name from a ``from ... import`` statement).
+    """
+
+    async def test_call_is_intercepted_and_return_value_configurable(
+        self, mock_robust_invoke
+    ):
+        """Module-level call to robust_invoke_async is intercepted; return value is configurable."""
+        import black_langcube.llm_modules.robust_invoke_async as ria
+
+        expected = (
+            "translated text",
+            {"tokens_in": 10, "tokens_out": 5, "tokens_price": 0.001},
+        )
+        mock_robust_invoke.return_value = expected
+
+        result = await ria.robust_invoke_async(
+            chain=MagicMock(), extra_input={"text": "hello"}
+        )
+
+        assert result == expected
+        mock_robust_invoke.assert_awaited_once()
+
+    async def test_mock_records_call_arguments(self, mock_robust_invoke):
+        """The AsyncMock tracks which arguments robust_invoke_async was called with."""
+        import black_langcube.llm_modules.robust_invoke_async as ria
+
+        mock_robust_invoke.return_value = ("ok", {})
+        fake_chain = MagicMock(name="chain")
+
+        await ria.robust_invoke_async(chain=fake_chain, extra_input={"key": "val"})
+
+        mock_robust_invoke.assert_awaited_once_with(
+            chain=fake_chain, extra_input={"key": "val"}
+        )
 
 
 if __name__ == "__main__":

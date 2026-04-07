@@ -12,6 +12,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
@@ -73,6 +75,7 @@ def _rate_limit_error() -> openai.RateLimitError:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestSyncCircuitBreakerTransitions(unittest.TestCase):
     def setUp(self):
         reset_all_circuit_breakers()
@@ -247,6 +250,7 @@ class TestSyncCircuitBreakerTransitions(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestSyncRegistry(unittest.TestCase):
     def setUp(self):
         reset_all_circuit_breakers()
@@ -275,6 +279,7 @@ class TestSyncRegistry(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestAsyncCircuitBreakerTransitions(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         async_reset_all_circuit_breakers()
@@ -437,6 +442,7 @@ class TestAsyncCircuitBreakerTransitions(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestAsyncRegistry(unittest.TestCase):
     def setUp(self):
         async_reset_all_circuit_breakers()
@@ -465,6 +471,7 @@ class TestAsyncRegistry(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestRobustInvokeAsyncCircuitBreaker(unittest.IsolatedAsyncioTestCase):
     """
     Verifies robust_invoke_async short-circuits without calling the chain when
@@ -551,6 +558,7 @@ class TestRobustInvokeAsyncCircuitBreaker(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestRobustInvokeCircuitBreaker(unittest.TestCase):
     """
     Verifies robust_invoke short-circuits without calling the chain when the

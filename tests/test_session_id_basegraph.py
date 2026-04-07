@@ -17,6 +17,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
@@ -36,6 +38,7 @@ def _make_graph(folder_name=None, session_id=None, user_message="hello"):
     )
 
 
+@pytest.mark.unit
 class TestBaseGraphInit(unittest.TestCase):
     """Constructor validation: folder_name / session_id combinations."""
 
@@ -66,6 +69,7 @@ class TestBaseGraphInit(unittest.TestCase):
         self.assertEqual(g.session_id, uid)
 
 
+@pytest.mark.unit
 class TestIntroInfoCheck(unittest.TestCase):
     """intro_info_check validation."""
 
@@ -95,6 +99,7 @@ class TestIntroInfoCheck(unittest.TestCase):
             g.intro_info_check()
 
 
+@pytest.mark.unit
 class TestGetSubfolder(unittest.TestCase):
     """get_subfolder() returns None in database mode."""
 
@@ -110,6 +115,7 @@ class TestGetSubfolder(unittest.TestCase):
         self.assertIsNone(result)
 
 
+@pytest.mark.unit
 class TestWriteEventsToFile(unittest.IsolatedAsyncioTestCase):
     """write_events_to_file() returns None and skips I/O in database mode."""
 
@@ -119,6 +125,7 @@ class TestWriteEventsToFile(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result)
 
 
+@pytest.mark.unit
 class TestGraphNameInjection(unittest.IsolatedAsyncioTestCase):
     """graph_name is injected into the state passed to astream."""
 
@@ -159,6 +166,7 @@ class TestGraphNameInjection(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("graph_name", original_state)
 
 
+@pytest.mark.unit
 class TestGraphStateHasGraphName(unittest.TestCase):
     """GraphState TypedDict includes graph_name field."""
 

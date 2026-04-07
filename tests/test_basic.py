@@ -8,12 +8,15 @@ import tomllib
 import unittest
 from pathlib import Path
 
+import pytest
+
 # Add the src directory to the path for testing
 project_root = Path(__file__).parent.parent
 src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
 
+@pytest.mark.unit
 class TestLibraryStructure(unittest.TestCase):
     """Test basic library structure and imports."""
 
@@ -146,6 +149,7 @@ class TestLibraryStructure(unittest.TestCase):
             self.assertTrue(file_path.is_file(), f"{file_name} is not a file")
 
 
+@pytest.mark.unit
 class TestDataStructures(unittest.TestCase):
     """Test data structure functionality."""
 
@@ -196,6 +200,7 @@ class TestDataStructures(unittest.TestCase):
         self.assertEqual(outline.items[1].foo, "Methods")
 
 
+@pytest.mark.unit
 class TestCoreComponents(unittest.TestCase):
     """Test core component functionality."""
 

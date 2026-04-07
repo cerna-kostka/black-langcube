@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1] - 2026-04-07
+
+### Feature: structured testing infrastructure with in-memory DB fixtures and LLM mocking (BP-7)
+
+- Updated `tests/conftest.py`: added `os.environ.setdefault("OPENAI_API_KEY", "test-key-not-real")` before all project imports so that config-level validation passes during test collection on machines without a real API key; imported `AsyncMock` and `patch` from `unittest.mock`
+- Added `test_db_session` async pytest fixture (alongside the existing `db_session`) — session-scoped `db_engine` creates all ORM tables in the shared in-memory SQLite engine via `Base.metadata.create_all`; per-test fixture yields an `AsyncSession` with `expire_on_commit=False` and always rolls back in the `finally` block, giving every test a clean isolated DB state
+- Added `mock_robust_invoke` pytest fixture — patches `black_langcube.llm_modules.robust_invoke_async.robust_invoke_async` with `new_callable=AsyncMock`; opt-in (not `autouse`); returns the `AsyncMock` directly so tests can configure `.return_value` or assert `.assert_awaited_once()`
+- Registered pytest markers in `[tool.pytest.ini_options]` in `pyproject.toml`: `unit` (fast isolated tests — no external services), `integration` (in-memory DB, file I/O, or multiple internal components), `functional` (end-to-end / live services)
+- Applied `@pytest.mark.unit` to 196 unit tests across 44 test classes in `test_basic.py`, `test_circuit_breaker.py`, `test_config.py`, `test_llm_model.py`, `test_llm_node_injection.py`, `test_parallel_fanout.py`, `test_session_id_basegraph.py`, and the pure-logic classes in `test_database.py`
+- Applied `@pytest.mark.integration` to the four DB/file-I/O test classes in `test_database.py`: `TestDatabaseServiceCRUD`, `TestStorageServiceFileModeAsync`, `TestStorageServiceDatabaseMode`, `TestStorageServiceDualMode`
+- Added `import pytest` to all test files that previously only used `unittest`
+- Added `aiosqlite` to the `dev` optional-dependencies group in `pyproject.toml` so a single `pip install -e .[dev]` installs everything needed to run the full test suite without the `database` extras group
+- Added "Running Tests" section to `DEVELOPMENT.md` documenting: installation command, fixture setup (env-var bootstrapping, `asyncio_mode = "auto"`), marker table and selection examples, `mock_robust_invoke` usage, `test_db_session` usage, and `@pytest.mark.skip` discipline
+- Audited all existing tests: no test requires a live external service; no `@pytest.mark.skip` decorators were needed
+- All 212 tests pass; `pytest -m unit` runs 196 tests in < 1 s without any real API calls; `ruff format` and `ruff check --fix` clean
+
 ## [0.4.0] - 2026-04-07
 
 ### Feature: database storage layer to replace file-based JSON output (BP-1)

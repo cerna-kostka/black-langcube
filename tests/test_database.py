@@ -10,7 +10,7 @@ Covers:
 - DatabaseService.save_node_output()
 - DatabaseService.save_token_usage()
 - All DB tests use in-memory SQLite with StaticPool (via conftest fixtures)
-- Per-test rollback is enforced in the db_session fixture (conftest.py)
+- Per-test rollback is enforced in the test_db_session fixture (conftest.py)
 """
 
 import sys
@@ -35,6 +35,7 @@ from black_langcube.database.models import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestSanitizeJsonData(unittest.TestCase):
     """Unit tests for the null-byte sanitizer utility."""
 
@@ -102,6 +103,7 @@ class TestSanitizeJsonData(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 class TestDatabaseServiceLifecycle:
     """Context manager lifecycle: commit on success, rollback on exception."""
@@ -139,147 +141,104 @@ class TestDatabaseServiceLifecycle:
         mock_session.close.assert_awaited_once()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestDatabaseServiceCRUD:
     """Full CRUD operations via DatabaseService, using the conftest db fixtures."""
 
-    async def _make_db_service(self, db_engine) -> DatabaseService:
-        """Create a DatabaseService backed by the test engine."""
+    def _make_db_service(self, session) -> DatabaseService:
+        """Create a DatabaseService backed by the provided test session."""
         svc = DatabaseService.__new__(DatabaseService)
-        svc.session = AsyncSession(db_engine, expire_on_commit=False)
+        svc.session = session
         return svc
 
-    async def test_create_and_get_session(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session(metadata={"run": "1"})
-            assert sid is not None
+    async def test_create_and_get_session(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session(metadata={"run": "1"})
+        assert sid is not None
 
-            retrieved = await svc.get_session(sid)
-            assert retrieved is not None
-            assert retrieved.id == sid
-            assert retrieved.status == "running"
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+        retrieved = await svc.get_session(sid)
+        assert retrieved is not None
+        assert retrieved.id == sid
+        assert retrieved.status == "running"
 
-    async def test_create_session_with_explicit_id(self, db_engine):
+    async def test_create_session_with_explicit_id(self, test_db_session):
         import uuid
 
         explicit_id = str(uuid.uuid4())
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session(session_id=explicit_id)
-            assert sid == explicit_id
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session(session_id=explicit_id)
+        assert sid == explicit_id
 
-    async def test_get_session_not_found(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            result = await svc.get_session("nonexistent-id")
-            assert result is None
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_get_session_not_found(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        result = await svc.get_session("nonexistent-id")
+        assert result is None
 
-    async def test_update_session_status_valid(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.update_session_status(sid, "completed")
-            assert ok is True
-            updated = await svc.get_session(sid)
-            assert updated.status == "completed"
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_update_session_status_valid(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.update_session_status(sid, "completed")
+        assert ok is True
+        updated = await svc.get_session(sid)
+        assert updated.status == "completed"
 
-    async def test_update_session_status_invalid_raises(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            # The @validates decorator raises ValueError for bad status
-            with pytest.raises(ValueError, match="Invalid session status"):
-                await svc.update_session_status(sid, "INVALID_STATUS")
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_update_session_status_invalid_raises(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        # The @validates decorator raises ValueError for bad status
+        with pytest.raises(ValueError, match="Invalid session status"):
+            await svc.update_session_status(sid, "INVALID_STATUS")
 
-    async def test_update_session_status_not_found(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            ok = await svc.update_session_status("does-not-exist", "completed")
-            assert ok is False
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_update_session_status_not_found(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        ok = await svc.update_session_status("does-not-exist", "completed")
+        assert ok is False
 
-    async def test_save_graph_output(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.save_graph_output(
-                sid, "graf1", {"result": "ok"}, step_name="step1"
-            )
-            assert ok is True
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_save_graph_output(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.save_graph_output(
+            sid, "graf1", {"result": "ok"}, step_name="step1"
+        )
+        assert ok is True
 
-    async def test_save_graph_output_sanitizes_null_bytes(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.save_graph_output(sid, "graf1", {"text": "a\u0000b"})
-            assert ok is True
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_save_graph_output_sanitizes_null_bytes(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.save_graph_output(sid, "graf1", {"text": "a\u0000b"})
+        assert ok is True
 
-    async def test_save_node_output(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.save_node_output(sid, "graf1", "my_node", {"output": "data"})
-            assert ok is True
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_save_node_output(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.save_node_output(sid, "graf1", "my_node", {"output": "data"})
+        assert ok is True
 
-    async def test_save_token_usage(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.save_token_usage(
-                sid,
-                "graf1",
-                node_name="node1",
-                model="gpt-4o",
-                prompt_tokens=100,
-                completion_tokens=50,
-                total_tokens=150,
-                raw_data={"usage": {"total": 150}},
-            )
-            assert ok is True
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_save_token_usage(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.save_token_usage(
+            sid,
+            "graf1",
+            node_name="node1",
+            model="gpt-4o",
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            raw_data={"usage": {"total": 150}},
+        )
+        assert ok is True
 
-    async def test_save_token_usage_with_null_bytes_in_raw_data(self, db_engine):
-        svc = await self._make_db_service(db_engine)
-        try:
-            sid = await svc.create_session()
-            ok = await svc.save_token_usage(
-                sid,
-                "graf1",
-                raw_data={"note": "val\u0000ue"},
-            )
-            assert ok is True
-        finally:
-            await svc.session.rollback()
-            await svc.session.close()
+    async def test_save_token_usage_with_null_bytes_in_raw_data(self, test_db_session):
+        svc = self._make_db_service(test_db_session)
+        sid = await svc.create_session()
+        ok = await svc.save_token_usage(
+            sid,
+            "graf1",
+            raw_data={"note": "val\u0000ue"},
+        )
+        assert ok is True
 
 
 # ---------------------------------------------------------------------------
@@ -287,6 +246,7 @@ class TestDatabaseServiceCRUD:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestSessionModelValidation(unittest.TestCase):
     """Ensure @validates on Session.status rejects invalid values."""
 
@@ -310,6 +270,7 @@ class TestSessionModelValidation(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.unit
 class TestStorageServiceModeValidation(unittest.TestCase):
     """StorageService raises ValueError for invalid modes at construction time."""
 
@@ -357,6 +318,7 @@ class TestStorageServiceModeValidation(unittest.TestCase):
                 os.environ["STORAGE_MODE"] = original
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestStorageServiceFileModeAsync:
     """file mode: writes to file, skips DB."""
@@ -383,6 +345,7 @@ class TestStorageServiceFileModeAsync:
         assert json.loads(Path(fp).read_text()) == {"hello": "world"}
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestStorageServiceDatabaseMode:
     """database mode: writes only to DB."""
@@ -420,6 +383,7 @@ class TestStorageServiceDatabaseMode:
         assert result is True
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestStorageServiceDualMode:
     """dual mode: DB failure falls back to file write without raising."""
