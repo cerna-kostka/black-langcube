@@ -45,6 +45,12 @@ black-langcube/
 │   ├── format_instructions/      # Output formatting utilities
 │   │   └── analyst_format.py    # Analyst-specific formatting
 │   ├── output_creation_functions/ # File generation utilities
+│   ├── database/                 # SQLAlchemy async ORM storage layer
+│   │   ├── __init__.py           # Exports DatabaseService, Base, ORM models
+│   │   ├── config.py             # Async engine, session factory, Base
+│   │   ├── models.py             # Session, GraphOutput, NodeOutput, TokenUsage ORM models
+│   │   └── operations.py        # DatabaseService context manager + sanitize_json_data
+│   ├── storage_service.py        # StorageService (file / database / dual modes)
 │   └── examples/                 # Usage examples and tutorials
 ├── tests/                        # Test files
 ├── pyproject.toml               # Modern Python packaging configuration
@@ -72,11 +78,66 @@ Pre-built node classes for common LLM operations:
 ### 3. Data Structures (`data_structures/`)
 Pydantic models for structured data:
 - `Strategies`: Research strategy definitions
+
+### 4. Database Storage Layer (`database/`)
+
+SQLAlchemy 2.x async ORM storage layer that replaces (or augments) the
+file-based JSON output system.
+
+#### Subpackage files
+
+| File | Purpose |
+|---|---|
+| `config.py` | Async engine factory, session factory (`async_sessionmaker`), `Base` |
+| `models.py` | ORM models: `Session`, `GraphOutput`, `NodeOutput`, `TokenUsage` |
+| `operations.py` | `DatabaseService` context manager + `sanitize_json_data()` |
+
+#### Storage modes
+
+Controlled by the `STORAGE_MODE` environment variable:
+
+| Mode | Behavior |
+|---|---|
+| `file` | Write/read files only — default, fully backward-compatible |
+| `database` | Write/read database only |
+| `dual` | Write to both; read from database — recommended migration path |
+
+Unknown mode values cause `StorageService` to raise `ValueError` at
+construction time (fail fast, not at write time).
+
+#### Database URL
+
+Set `DATABASE_URL` to your connection string. The library auto-converts it to
+the appropriate async dialect:
+
+```
+# PostgreSQL (production)
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+# → postgresql+asyncpg://...
+
+# SQLite (local / tests)
+DATABASE_URL=sqlite:///./black_langcube.db
+# → sqlite+aiosqlite://...
+```
+
+#### Running DB tests
+
+Install the optional database group and run pytest:
+
+```bash
+pip install -e .[dev,database]
+pytest tests/test_database.py -v
+```
+
+All DB tests use an in-memory SQLite database (`sqlite+aiosqlite:///:memory:`
+with `StaticPool`). The `DATABASE_URL` override is applied in `conftest.py`
+before any `black_langcube.database` imports so the engine is created with the
+test URL.
 - `Article`: Scientific article metadata
 - `Outline`: Document structure representation
 - Extensible for custom data types
 
-### 4. Processing Entry Points (`process.py`)
+### 5. Processing Entry Points (`process.py`)
 Main library interface functions:
 - `run_workflow_by_id()`: Execute individual workflows
 - `run_complete_pipeline()`: Run sequential workflow chains
