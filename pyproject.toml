@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "black_langcube"
-version = "0.3.6"
+version = "0.4.0"
 description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
 readme = "README.md"
 license = "MIT"
@@ -46,10 +46,16 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov",
+    "pytest-asyncio>=0.24.0",
     "black",
     "isort",
     "flake8",
     "mypy",
+]
+database = [
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg",
+    "aiosqlite",
 ]
 examples = [
     "jupyter",
@@ -89,3 +95,6 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

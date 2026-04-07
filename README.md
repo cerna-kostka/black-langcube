@@ -112,6 +112,8 @@ The library is organized into several key modules:
 - **`messages/`**: Message formatting and composition utilities
 - **`prompts/`**: Prompt templates and configurations
 - **`format_instructions/`**: Output formatting utilities
+- **`database/`**: SQLAlchemy async ORM models and `DatabaseService`
+- **`storage_service.py`**: Three-mode storage abstraction (`file`, `database`, `dual`)
 
 ## 🛠️ Usage Examples
 
@@ -191,6 +193,71 @@ see every problem at once. It is safe to call multiple times (idempotent).
 API keys are stored internally as `pydantic.SecretStr`, which prevents the raw
 value from appearing in `str()`, `repr()`, or log output. Call
 `.get_secret_value()` only at the last moment when the key must be used.
+
+### Storage and Database Configuration
+
+The library supports three output storage modes controlled by the `STORAGE_MODE`
+environment variable:
+
+| `STORAGE_MODE` | Behavior |
+|---|---|
+| `file` (default) | Write results to timestamped folders — existing behavior, fully backward-compatible |
+| `database` | Write results only to the database |
+| `dual` | Write to both file system and database — recommended migration path |
+
+Set a database connection URL via the `DATABASE_URL` environment variable:
+
+```env
+# SQLite (local/testing)
+DATABASE_URL=sqlite:///./black_langcube.db
+
+# PostgreSQL (production)
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+The library automatically converts `DATABASE_URL` to the appropriate async
+dialect (`postgresql+asyncpg://` or `sqlite+aiosqlite://`).
+
+#### Optional database dependencies
+
+Install the `database` extras to enable database-backed storage:
+
+```bash
+pip install black_langcube[database]
+```
+
+This installs `sqlalchemy[asyncio]>=2.0`, `asyncpg` (PostgreSQL), and
+`aiosqlite` (SQLite / tests).
+
+#### Migration guide for existing `file`-mode users
+
+Existing deployments are **unaffected by default**. `STORAGE_MODE` defaults to
+`file` when the environment variable is unset. To migrate:
+
+1. Install `black_langcube[database]`.
+2. Set `DATABASE_URL` to your database connection string.
+3. Start with `STORAGE_MODE=dual` to write to both file and database while you
+   verify the database output.
+4. Switch to `STORAGE_MODE=database` once you are satisfied.
+
+#### Using `StorageService` directly
+
+```python
+import asyncio
+from black_langcube.storage_service import StorageService
+
+async def main():
+    # Uses STORAGE_MODE and DATABASE_URL from environment
+    storage = StorageService()
+    await storage.save_graph_output(
+        session_id="my-session-uuid",
+        graph_name="graf1",
+        data={"result": "..."},
+        step_name="analysis",
+    )
+
+asyncio.run(main())
+```
 
 ## 📖 Examples
 

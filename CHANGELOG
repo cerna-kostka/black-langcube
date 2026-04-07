@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0] - 2026-04-07
+
+### Feature: database storage layer to replace file-based JSON output (BP-1)
+
+- Added `src/black_langcube/database/` subpackage with `config.py`, `models.py`, `operations.py`, and `__init__.py`
+- `config.py` — async engine factory with automatic dialect URL rewriting (`postgresql://` → `postgresql+asyncpg://`, `sqlite://` → `sqlite+aiosqlite://`); PostgreSQL pool settings (`pool_size=10`, `max_overflow=20`, `pool_recycle=3600`, `pool_pre_ping=True`); `async_sessionmaker` with `expire_on_commit=False`; exports `Base` for migrations
+- `models.py` — four ORM models via `TimestampMixin` (DRY `created_at`/`updated_at`), UUID primary keys (native `UUID(as_uuid=True)` on PostgreSQL, `String(36)` on SQLite), `JSONType` alias (`JSONB` on PostgreSQL, `JSON` on SQLite): `Session` (replaces timestamped result folders), `GraphOutput` (replaces `graph*_output.json` per-stage files), `NodeOutput` (replaces per-node intermediate JSON lines), `TokenUsage` (replaces token accounting entries); all FK columns are indexed; `Session.status` validated via `@validates` against `VALID_SESSION_STATUSES`; cascade deletes propagate from `Session` to all child rows; `GraphOutput` has a composite `UniqueConstraint` on `(session_id, graph_name, step_name)`
+- `operations.py` — `DatabaseService` async context manager: commits on clean exit, rolls back on exception, always closes in `finally`; all write methods call `sanitize_json_data()` before insertion and use `flush()` (not `commit()`) to obtain generated IDs within the open transaction; reads use `scalar_one_or_none()`; all DB calls wrapped in `try/except SQLAlchemyError` — logs error and returns `False`/`None` rather than raising; exposes `create_session()`, `get_session()`, `update_session_status()`, `save_graph_output()`, `save_node_output()`, `save_token_usage()`
+- `sanitize_json_data()` — recursive function in `operations.py` that strips PostgreSQL-hostile null bytes (`\u0000`) from all string values in dicts, lists, and nested structures before every DB write
+- Added `src/black_langcube/storage_service.py` — `StorageService` abstraction with three modes controlled by `STORAGE_MODE` env var: `file` (backward-compatible default), `database`, `dual`; raises `ValueError` at construction time for unknown modes; `_db_service` property is lazy (no DB connection in file-only mode); in `dual` mode a DB write failure is logged and execution falls back to file write — if both fail, returns `False`
+- Added `database` optional extras group in `pyproject.toml`: `sqlalchemy[asyncio]>=2.0`, `asyncpg`, `aiosqlite`
+- Added `pytest-asyncio>=0.24.0` to the `dev` optional extras; set `asyncio_mode = "auto"` in `[tool.pytest.ini_options]`
+- Updated `tests/conftest.py`: sets `DATABASE_URL=sqlite+aiosqlite:///:memory:` before any imports; adds `db_engine` (session-scoped, creates schema via `Base.metadata.create_all`) and `db_session` (per-test, always rolls back in `finally`) async fixtures
+- Added `tests/test_database.py` with 42 tests: 16 `sanitize_json_data` unit tests (plain strings, null bytes, dicts, lists, nested structures, mixed types), 2 `DatabaseService` lifecycle tests (commit path, rollback path), 11 `DatabaseService` CRUD tests (create/get/update session, all three write operations, null-byte data), 2 `Session.status` validation tests, 6 `StorageService` mode-validation tests (all valid modes, invalid mode, empty string, env-var default), 2 `StorageService` file-mode async tests, 1 `StorageService` database-mode test, 2 `StorageService` dual-mode tests (DB failure fallback, both-fail return value)
+- Updated `README.md`: added `database/` and `storage_service.py` to architecture overview; added "Storage and Database Configuration" section documenting `STORAGE_MODE`, `DATABASE_URL`, optional dependencies, and migration guide for existing file-mode users
+- Updated `DEVELOPMENT.md`: added `database/` and `storage_service.py` to project structure; added "Database Storage Layer" section documenting subpackage files, storage modes, database URL, and how to run DB tests
+- All 212 tests pass; `ruff format` and `ruff check --fix` clean
+
 ## [0.3.6] - 2026-04-06
 
 ### Feature: thread session_id through BaseGraph and GraphState (BP-3)
