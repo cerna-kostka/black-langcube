@@ -18,11 +18,14 @@ import unittest
 from pathlib import Path
 from typing import Annotated
 
+import pytest
+
 # Make sure the src tree is on the path when the test is run directly.
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 
+@pytest.mark.unit
 class TestAddParallelNodes(unittest.IsolatedAsyncioTestCase):
     """Unit tests for BaseGraph.add_parallel_nodes."""
 
@@ -236,6 +239,7 @@ class TestAddParallelNodes(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(final.get("counter"), 2)
 
 
+@pytest.mark.unit
 class TestRunParallelPipeline(unittest.IsolatedAsyncioTestCase):
     """Unit tests for process.run_parallel_pipeline."""
 
@@ -314,6 +318,7 @@ class TestRunParallelPipeline(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["parallel_results"], ["sole"])
 
 
+@pytest.mark.unit
 class TestImportSmoke(unittest.TestCase):
     """Import-level smoke tests confirming no regressions."""
 

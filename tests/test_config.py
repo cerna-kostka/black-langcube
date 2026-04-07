@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 # Add the src directory to the path for testing
 project_root = Path(__file__).parent.parent
 src_path = project_root / "src"
@@ -18,6 +20,7 @@ sys.path.insert(0, str(src_path))
 from black_langcube.config import ConfigurationError, get_api_key, validate_config  # noqa: E402
 
 
+@pytest.mark.unit
 class TestConfigurationError(unittest.TestCase):
     """ConfigurationError is a distinct exception class."""
 
@@ -34,6 +37,7 @@ class TestConfigurationError(unittest.TestCase):
         self.assertEqual(str(exc), msg)
 
 
+@pytest.mark.unit
 class TestGetApiKey(unittest.TestCase):
     """get_api_key() reads env vars and wraps them in SecretStr."""
 
@@ -77,6 +81,7 @@ class TestGetApiKey(unittest.TestCase):
         self.assertEqual(result.get_secret_value(), "abc123")
 
 
+@pytest.mark.unit
 class TestValidateConfig(unittest.TestCase):
     """validate_config() checks all required environment variables."""
 
@@ -118,6 +123,7 @@ class TestValidateConfig(unittest.TestCase):
             self.assertIn(var, error_msg)
 
 
+@pytest.mark.unit
 class TestPublicApiExports(unittest.TestCase):
     """validate_config and ConfigurationError are exported from the top-level package."""
 

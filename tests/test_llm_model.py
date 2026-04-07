@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pydantic import SecretStr
 
 # Add the src directory to the path for testing
@@ -41,6 +42,7 @@ from black_langcube.llm_modules.llm_model import (  # noqa: E402
 import black_langcube.llm_modules.llm_model as llm_model_module  # noqa: E402
 
 
+@pytest.mark.unit
 class TestLLMProviderEnum(unittest.TestCase):
     """LLMProvider is a string enum with the expected members."""
 
@@ -58,6 +60,7 @@ class TestLLMProviderEnum(unittest.TestCase):
         self.assertEqual(LLMProvider("gemini"), LLMProvider.GEMINI)
 
 
+@pytest.mark.unit
 class TestModelTierEnum(unittest.TestCase):
     """ModelTier is a string enum covering all pipeline steps."""
 
@@ -75,6 +78,7 @@ class TestModelTierEnum(unittest.TestCase):
             self.assertIsInstance(tier, str)
 
 
+@pytest.mark.unit
 class TestModelRegistry(unittest.TestCase):
     """MODEL_REGISTRY covers every (provider, tier) combination."""
 
@@ -99,6 +103,7 @@ class TestModelRegistry(unittest.TestCase):
         self.assertEqual(MODEL_REGISTRY[LLMProvider.GEMINI][ModelTier.HIGH], expected)
 
 
+@pytest.mark.unit
 class TestLoadSecret(unittest.TestCase):
     """_load_secret() wraps env vars in SecretStr or returns None."""
 
@@ -123,6 +128,7 @@ class TestLoadSecret(unittest.TestCase):
         self.assertIsNone(result)
 
 
+@pytest.mark.unit
 class TestSecretStrLeakPrevention(unittest.TestCase):
     """SecretStr does not expose the raw value in repr / str / f-strings."""
 
@@ -156,6 +162,7 @@ class TestSecretStrLeakPrevention(unittest.TestCase):
         self.assertIsInstance(MISTRAL_API_KEY, (SecretStr, type(None)))
 
 
+@pytest.mark.unit
 class TestCreateLLMOpenAI(unittest.TestCase):
     """create_llm() dispatches to ChatOpenAI with the correct model name."""
 
@@ -199,6 +206,7 @@ class TestCreateLLMOpenAI(unittest.TestCase):
         self.assertNotIn("api_key", kwargs)
 
 
+@pytest.mark.unit
 class TestCreateLLMGemini(unittest.TestCase):
     """create_llm() dispatches to ChatGoogleGenerativeAI with correct model name."""
 
@@ -242,6 +250,7 @@ class TestCreateLLMGemini(unittest.TestCase):
         self.assertNotIn("google_api_key", kwargs)
 
 
+@pytest.mark.unit
 class TestCreateLLMUnknownProvider(unittest.TestCase):
     """create_llm() raises ValueError for unsupported providers."""
 
@@ -251,6 +260,7 @@ class TestCreateLLMUnknownProvider(unittest.TestCase):
             create_llm("unknown_provider", ModelTier.LOW)  # type: ignore[arg-type]
 
 
+@pytest.mark.unit
 class TestCreateLLMMistral(unittest.TestCase):
     """create_llm() dispatches to ChatMistralAI with the correct model name."""
 
@@ -293,6 +303,7 @@ class TestCreateLLMMistral(unittest.TestCase):
         self.assertNotIn("mistral_api_key", kwargs)
 
 
+@pytest.mark.unit
 class TestCreateLLMAllTiers(unittest.TestCase):
     """create_llm() dispatches without error for every (provider, tier) combination."""
 
@@ -339,6 +350,7 @@ class TestCreateLLMAllTiers(unittest.TestCase):
                         )
 
 
+@pytest.mark.unit
 class TestResolveProvider(unittest.TestCase):
     """_resolve_provider() reads step env var and falls back to DEFAULT_PROVIDER."""
 
@@ -367,6 +379,7 @@ class TestResolveProvider(unittest.TestCase):
         self.assertIsInstance(DEFAULT_PROVIDER, LLMProvider)
 
 
+@pytest.mark.unit
 class TestGlobalProviderOverride(unittest.TestCase):
     """Setting PROVIDER env var switches the default provider for all tiers."""
 
@@ -398,6 +411,7 @@ class TestGlobalProviderOverride(unittest.TestCase):
         self.assertEqual(result, LLMProvider.OPENAI)
 
 
+@pytest.mark.unit
 class TestPublicAliases(unittest.TestCase):
     """Public alias functions delegate to create_llm() with the expected tier."""
 
@@ -434,6 +448,7 @@ class TestPublicAliases(unittest.TestCase):
             mock_low.assert_called_once()
 
 
+@pytest.mark.unit
 class TestPublicAPIExports(unittest.TestCase):
     """LLMProvider and ModelTier are exported from the top-level package."""
 

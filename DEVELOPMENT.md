@@ -263,6 +263,111 @@ python data_structures_example.py
 python library_usage.py
 ```
 
+## Running Tests
+
+### Installing Test Dependencies
+
+Install the `dev` and `database` optional groups before running tests. `aiosqlite`
+and `pytest-asyncio` are included in the `dev` group:
+
+```bash
+pip install -e .[dev,database]
+```
+
+### Fixture Setup
+
+`tests/conftest.py` bootstraps the test environment automatically:
+
+- `DATABASE_URL=sqlite+aiosqlite:///:memory:` is set via `os.environ.setdefault`
+  **before** any `black_langcube.database` imports so the in-memory engine is
+  created with the test URL.
+- `OPENAI_API_KEY=test-key-not-real` is set so that config-level validation
+  passes during test collection on machines without a real API key.  Real keys
+  in the environment always take precedence (`setdefault` is used throughout).
+- `asyncio_mode = "auto"` (in `pyproject.toml`) means every `async def test_*`
+  function runs automatically under pytest-asyncio — no per-function decorator
+  needed.
+
+### Marker-Based Test Selection
+
+All tests are tagged with one of three markers registered in `pyproject.toml`:
+
+| Marker | Meaning |
+|---|---|
+| `unit` | Fast isolated tests — no external services, no file I/O |
+| `integration` | Tests using in-memory SQLite, `tmp_path`, or multiple internal components |
+| `functional` | End-to-end tests requiring a running application or live external service |
+
+Run a specific subset:
+
+```bash
+# Only unit tests (fastest — no DB, no file I/O)
+pytest -m unit
+
+# Only integration tests
+pytest -m integration
+
+# Everything except functional (safe for CI without live services)
+pytest -m "not functional"
+
+# Full suite
+pytest
+```
+
+### Using the `mock_robust_invoke` Fixture
+
+`mock_robust_invoke` is an opt-in fixture (not `autouse`) that patches
+`robust_invoke_async` at the module level so no real API calls are made.
+
+```python
+async def test_my_node_output(mock_robust_invoke):
+    # Configure the return value the mock should produce
+    mock_robust_invoke.return_value = {"output": "mocked response", "tokens": {}}
+
+    # Run the code under test
+    result = await my_node(state={"question": "test?"}, extra_input={})
+
+    assert result["output"] == "mocked response"
+    # Confirm the mock was actually called
+    mock_robust_invoke.assert_awaited_once()
+```
+
+The mock is an `AsyncMock`, so `await`ing it works naturally and call history
+is tracked as expected.
+
+### The `test_db_session` Fixture
+
+`test_db_session` provides a clean `AsyncSession` backed by an in-memory SQLite
+database for every test.  All writes are rolled back in the `finally` block —
+no explicit cleanup is required.
+
+```python
+async def test_creates_row(test_db_session):
+    from black_langcube.database.models import Session as SessionModel
+    import uuid
+
+    row = SessionModel(id=str(uuid.uuid4()), status="running")
+    test_db_session.add(row)
+    await test_db_session.flush()
+
+    assert row.id is not None
+    # Rollback happens automatically after this test
+```
+
+### `@pytest.mark.skip` Discipline
+
+Any test that genuinely requires a live external service (real API key, running
+Postgres, etc.) must be decorated explicitly — never silently skip by catching
+a missing-dependency error:
+
+```python
+@pytest.mark.skip(reason="Requires live OpenAI API key")
+async def test_live_llm_call():
+    ...
+```
+
+This makes it obvious in CI output which tests were omitted and why.
+
 ### Contributing
 
 1. Fork the repository
