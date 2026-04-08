@@ -181,6 +181,56 @@ The `ValueError` is raised **before** the `try/except RuntimeError` wrapper in
 `run_workflow_by_id`, so it propagates directly to the caller without being
 re-wrapped as `RuntimeError`.
 
+### 7. Provider-Agnostic Error Handling (`llm_modules/robust_invoke*.py`)
+
+Both `robust_invoke` (sync) and `robust_invoke_async` handle LLM chain
+invocations with a two-tier exception strategy and provider-agnostic token
+tracking.
+
+#### Exception handling tiers
+
+**Tier 1 — Provider-specific blocks** (import-guarded so uninstalled packages
+are never required):
+
+| Provider | Rate-limit error (backoff only) | Service-failure errors (circuit-breaker increment) |
+|---|---|---|
+| OpenAI | `openai.RateLimitError` | `APIConnectionError`, `APITimeoutError`, `InternalServerError` |
+| Gemini | `google.api_core.exceptions.ResourceExhausted` | `ServiceUnavailable`, `DeadlineExceeded`, `InternalServerError` |
+| Mistral | `mistralai.exceptions.MistralAPIException` (HTTP 429) | `MistralConnectionException` |
+
+**Tier 2 — Generic fallback**: any unrecognised exception is caught, logged at
+`ERROR` level, and returned as `{"error": ...}` so it never propagates
+uncaught.
+
+#### Circuit breaker service name
+
+`_SERVICE_NAME` is derived at module load time from the `PROVIDER` environment
+variable:
+
+```python
+_SERVICE_NAME = f"{os.getenv('PROVIDER', 'openai').lower()}_api"
+# e.g. "openai_api", "gemini_api", "mistral_api"
+```
+
+Separate circuit-breaker instances are maintained per provider; the
+`CB_FAILURE_THRESHOLD` and `CB_RECOVERY_TIMEOUT` environment variables apply
+to all providers.
+
+#### Token tracking
+
+Token usage is extracted from the chain result in priority order:
+
+1. `AIMessage.usage_metadata` — the cross-provider LangChain ≥ 0.2 standard
+   (supported by OpenAI, Gemini, Anthropic, and Mistral).  Returns
+   `tokens_in` and `tokens_out`; `tokens_price` is always 0 via this path.
+2. OpenAI callback object — preserves price data for existing OpenAI deployments
+   when `usage_metadata` is absent.
+3. Zero fallback — `{"tokens_in": 0, "tokens_out": 0, "tokens_price": 0}` with
+   a `DEBUG`-level log when no usage data is available.
+
+The extraction logic lives in
+`llm_modules/_token_utils.extract_token_usage(result, cb=None)`.
+
 ## Development Workflow
 
 ### Setting up Development Environment

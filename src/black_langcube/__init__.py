@@ -2,7 +2,7 @@
 Black LangCube - A framework for building LLM applications with LangGraph.
 """
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 __description__ = "A framework for building LLM applications with LangGraph"
 
 # Import core components to make them available from the main package

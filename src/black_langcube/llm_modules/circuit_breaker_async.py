@@ -17,20 +17,20 @@ import os
 import time
 from enum import Enum
 
-import openai
+from black_langcube.llm_modules._token_utils import PROVIDER_SERVICE_ERRORS
 
-CIRCUIT_BREAKER_CONFIG = {
-    "openai_api": {
-        "failure_threshold": int(os.getenv("CB_FAILURE_THRESHOLD", "5")),
-        "recovery_timeout": int(os.getenv("CB_RECOVERY_TIMEOUT", "60")),
+_DEFAULT_CB_FAILURE_THRESHOLD = int(os.getenv("CB_FAILURE_THRESHOLD", "5"))
+_DEFAULT_CB_RECOVERY_TIMEOUT = int(os.getenv("CB_RECOVERY_TIMEOUT", "60"))
+
+CIRCUIT_BREAKER_CONFIG: dict[str, dict[str, int]] = {
+    provider: {
+        "failure_threshold": _DEFAULT_CB_FAILURE_THRESHOLD,
+        "recovery_timeout": _DEFAULT_CB_RECOVERY_TIMEOUT,
     }
+    for provider in ("openai_api", "gemini_api", "mistral_api")
 }
 
-SERVICE_ERRORS = (
-    openai.APIConnectionError,
-    openai.APITimeoutError,
-    openai.InternalServerError,
-)
+SERVICE_ERRORS: tuple[type[BaseException], ...] = PROVIDER_SERVICE_ERRORS
 
 
 class CircuitBreakerOpenError(Exception):
@@ -111,22 +111,37 @@ class CircuitBreakerAsync:
     # Call gate
     # ------------------------------------------------------------------
 
-    def call(self):
+    def call(
+        self,
+        service_errors: tuple[type[BaseException], ...] | None = None,
+    ):
         """
         Async context manager that gates a single call through the breaker.
+
+        Args:
+            service_errors: Exception classes that count as service failures and
+                increment the failure counter.  When *None* (default) the
+                module-level ``SERVICE_ERRORS`` tuple is used.
 
         Usage::
 
             async with circuit_breaker.call():
                 result = await chain.ainvoke(...)
         """
-        return _AsyncBreakerContext(self)
+        return _AsyncBreakerContext(self, service_errors)
 
 
 class _AsyncBreakerContext:
-    def __init__(self, breaker: CircuitBreakerAsync) -> None:
+    def __init__(
+        self,
+        breaker: CircuitBreakerAsync,
+        service_errors: tuple[type[BaseException], ...] | None = None,
+    ) -> None:
         self._breaker = breaker
         self._is_probe = False
+        self._service_errors = (
+            service_errors if service_errors is not None else SERVICE_ERRORS
+        )
 
     async def __aenter__(self):
         async with self._breaker._get_lock():
@@ -147,7 +162,7 @@ class _AsyncBreakerContext:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type is None:
             await self._breaker.record_success()
-        elif issubclass(exc_type, SERVICE_ERRORS):
+        elif self._service_errors and issubclass(exc_type, self._service_errors):
             await self._breaker.record_failure()
         elif self._is_probe:
             # Other error (e.g. RateLimitError) during a HALF_OPEN probe:

@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.4.4] - 2026-04-08
+
+### Feature: provider-agnostic `robust_invoke` and `robust_invoke_async` (BP-23)
+
+- Created `llm_modules/_token_utils.py` — shared private module with three responsibilities:
+  - **Import guards** for optional provider packages (`openai`, `google.api_core.exceptions`, `mistralai.exceptions`); the module remains importable when only a subset is installed
+  - **`PROVIDER_SERVICE_ERRORS`** — a tuple of service-failure exception classes built dynamically from whichever provider packages are present; consumed by both circuit breakers to decide which exceptions increment the failure counter
+  - **`is_rate_limit_error(exc)`** — detects HTTP 429 / quota-exhausted errors for OpenAI (`RateLimitError`), Gemini (`ResourceExhausted`), and Mistral (`MistralAPIException` with status 429)
+  - **`extract_token_usage(result, cb=None)`** — reads `AIMessage.usage_metadata` (LangChain ≥ 0.2 cross-provider standard) first, falls back to an OpenAI callback object, and returns zero values with a `DEBUG` log when neither source is available
+- Refactored `llm_modules/robust_invoke.py`:
+  - Removed hard `import openai` and `get_openai_callback`; both are no longer top-level imports
+  - Replaced `_SERVICE_NAME = "openai_api"` with `_SERVICE_NAME = f"{os.getenv('PROVIDER', 'openai').lower()}_api"` so the circuit-breaker key tracks the active provider (e.g. `"gemini_api"`, `"mistral_api"`)
+  - Replaced OpenAI-only `except` blocks with a single `except Exception` that calls `is_rate_limit_error()` for rate-limit dispatch and records all other errors as provider failures; `OutputParserException` / `ValidationError` remain as dedicated fast-exit handlers before the generic block
+  - Replaced `with get_openai_callback() as cb / tokens = {cb.prompt_tokens, …}` with `tokens = extract_token_usage(result)`
+  - Updated docstring to list all handled exception categories for each supported provider
+- Refactored `llm_modules/robust_invoke_async.py` — mirrors all changes above in the async variant; `await asyncio.sleep` backoff preserved
+- Updated `llm_modules/circuit_breaker.py`:
+  - Removed hard `import openai`; imports `PROVIDER_SERVICE_ERRORS` from `_token_utils` and assigns it to module-level `SERVICE_ERRORS` (used by `_SyncBreakerContext.__exit__`)
+  - `CIRCUIT_BREAKER_CONFIG` updated from a single `"openai_api"` entry to a dict comprehension covering `openai_api`, `gemini_api`, and `mistral_api` — all sharing the same `CB_FAILURE_THRESHOLD` / `CB_RECOVERY_TIMEOUT` values
+- Updated `llm_modules/circuit_breaker_async.py` — mirrors the same changes for the async circuit breaker
+- Added `tests/test_robust_invoke_providers.py` with 29 parametrized unit tests covering:
+  - OpenAI path (sync + async): happy path with `usage_metadata`, rate-limit backoff, service-error circuit-breaker increment, circuit-open short-circuit, threshold-to-open
+  - Gemini path (simulated via `@patch`): `ResourceExhausted` → backoff; `ServiceUnavailable` → circuit-breaker increment and threshold-to-open
+  - Generic / unknown provider error (sync + async): caught as `{"error": …}`, never propagates, tokens zero
+  - Token extraction: `usage_metadata` present, absent (zero fallback), OpenAI callback fallback, `usage_metadata` preferred over callback, `None` result
+- Updated `tests/test_circuit_breaker.py`:
+  - Imported `_SERVICE_NAME as SYNC_SERVICE_NAME` / `ASYNC_SERVICE_NAME` from the two `robust_invoke` modules; replaced every hardcoded `"openai_api"` string in the `robust_invoke` integration-test helpers (`_open_circuit()`, circuit-breaker state assertions) with these constants
+  - Removed stale `patch("langchain_community.callbacks.get_openai_callback")` blocks that are no longer relevant after removing that dependency from `robust_invoke`
+- Updated `DEVELOPMENT.md`: added §7 "Provider-Agnostic Error Handling" documenting the two-tier exception strategy, the `_SERVICE_NAME` derivation, and the three-level token-tracking fallback
+- Applied `ruff format .` and `ruff check --fix .`; all 266 tests pass
+
 ## [0.4.3] - 2026-04-08
 
 ### Feature: session continuity validator to guard against out-of-order pipeline execution (BP-8)
