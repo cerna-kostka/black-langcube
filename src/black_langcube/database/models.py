@@ -26,6 +26,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -87,6 +88,7 @@ class Session(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(UUIDType, primary_key=True, default=_uuid_default)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")
+    current_node_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONType, nullable=True)
 
     # Relationships ----------------------------------------------------------------

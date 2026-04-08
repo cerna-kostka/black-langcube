@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.3] - 2026-04-08
+
+### Feature: session continuity validator to guard against out-of-order pipeline execution (BP-8)
+
+- Added `current_node_id` column (`Integer`, `nullable=False`, `default=0`) to the `Session` ORM model in `database/models.py`; tracks which pipeline node was last completed so the validator has a reference point to compare against
+- Created `helper_modules/session_validator.py` with `validate_session_continuity_async(session_id: str, current_node_id: int) -> None`: opens a `DatabaseService` context, fetches the session record, and raises `ValueError` with a descriptive message when `session.current_node_id != current_node_id - 1`; skips all validation and database access when `current_node_id == 1` (first node has no predecessor)
+- Integrated the validator into `process.py` `run_workflow_by_id()`: added optional `session_id: Optional[str] = None` keyword argument; validator is invoked before graph dispatch when `session_id is not None` and `int(workflow_id) > 1`; `ValueError` propagates directly to the caller (raised outside the `try/except RuntimeError` block) so continuity violations are never silently wrapped as `RuntimeError`
+- Added `tests/test_session_validator.py` with 8 unit tests covering: first-node skip (no DB access asserted via `assert_not_called`), happy-path continuation at node 2 and mid-pipeline at node 4, out-of-order call (session at 1, requesting 3), error message contains requested node number, duplicate node replay (session at 2, requesting 2), session not found, and error message traceability (session ID in message); all tests use `unittest.mock.patch` on `DatabaseService` — no real database required
+- Updated `DEVELOPMENT.md`: added §6 "Session Continuity Validator" documenting `validate_session_continuity_async`, when it is invoked, sequential call examples, and the full error contract table
+- Applied `ruff format .` and `ruff check --fix .`; all tests pass
+
 ## [0.4.2] - 2026-04-08
 
 ### Feature: per-step LLM provider and model configuration via environment variables (BP-5)

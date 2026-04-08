@@ -139,7 +139,13 @@ class DatabaseService:
             session_id: The UUID string of the session to retrieve.
 
         Returns:
-            The ``Session`` ORM object, or ``None`` if not found or on error.
+            The ``Session`` ORM object, or ``None`` if the session does not
+            exist.
+
+        Raises:
+            SQLAlchemyError: Re-raised on database errors so callers can
+                distinguish a missing session (``None`` return) from a DB
+                connectivity or query failure (raised exception).
         """
         assert self.session is not None
         try:
@@ -148,7 +154,36 @@ class DatabaseService:
             return result.scalar_one_or_none()
         except SQLAlchemyError as exc:
             logger.error("DB read failed (get_session): %s", exc)
-            return None
+            raise
+
+    async def update_session_current_node_id(
+        self, session_id: str, node_id: int
+    ) -> bool:
+        """Update the ``current_node_id`` field of an existing Session.
+
+        Args:
+            session_id: The UUID string identifying the session.
+            node_id: The node that has just completed successfully.
+
+        Returns:
+            ``True`` on success, ``False`` when the session is not found or a
+            database error occurs.
+        """
+        assert self.session is not None
+        try:
+            obj = await self.get_session(session_id)
+            if obj is None:
+                logger.warning(
+                    "update_session_current_node_id: session %r not found", session_id
+                )
+                return False
+            obj.current_node_id = node_id
+            self.session.add(obj)
+            await self.session.flush()
+            return True
+        except SQLAlchemyError as exc:
+            logger.error("DB write failed (update_session_current_node_id): %s", exc)
+            return False
 
     async def update_session_status(self, session_id: str, status: str) -> bool:
         """Update the status field of an existing Session.
