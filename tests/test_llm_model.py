@@ -29,8 +29,10 @@ from black_langcube.llm_modules.llm_model import (  # noqa: E402
     ModelTier,
     _load_secret,
     _resolve_provider,
+    _STEP_DEFINITIONS,
     create_llm,
     default_llm,
+    get_llm_config_summary,
     get_llm_high,
     get_llm_low,
     llm_analyst,
@@ -471,6 +473,174 @@ class TestPublicAPIExports(unittest.TestCase):
         import black_langcube
 
         self.assertIn("ModelTier", black_langcube.__all__)
+
+
+@pytest.mark.unit
+class TestPerStepProviderOverride(unittest.TestCase):
+    """Per-step {STEP}_PROVIDER env vars override the global provider in isolation."""
+
+    def _patch_env_and_create_llm(self, env: dict[str, str], fn):
+        """Patch os.environ, set DEFAULT_PROVIDER to OPENAI, call fn, return call args."""
+        with patch.object(llm_model_module, "DEFAULT_PROVIDER", LLMProvider.OPENAI):
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(llm_model_module, "create_llm") as mock_create:
+                    fn()
+                    return mock_create.call_args[0]
+
+    def test_analyst_provider_overrides_global(self):
+        """ANALYST_PROVIDER=gemini makes llm_analyst() use GEMINI, not OPENAI."""
+        args = self._patch_env_and_create_llm(
+            {"ANALYST_PROVIDER": "gemini"}, llm_analyst
+        )
+        self.assertEqual(args[0], LLMProvider.GEMINI)
+        self.assertEqual(args[1], ModelTier.ANALYST)
+
+    def test_outline_unaffected_by_analyst_override(self):
+        """When only ANALYST_PROVIDER is set, llm_outline() still uses DEFAULT_PROVIDER."""
+        args = self._patch_env_and_create_llm(
+            {"ANALYST_PROVIDER": "gemini"}, llm_outline
+        )
+        self.assertEqual(args[0], LLMProvider.OPENAI)
+        self.assertEqual(args[1], ModelTier.OUTLINE)
+
+    def test_all_steps_fall_back_to_default_when_no_overrides(self):
+        """With no per-step env vars, every step resolves to DEFAULT_PROVIDER."""
+        step_fns = [
+            (llm_analyst, ModelTier.ANALYST),
+            (llm_outline, ModelTier.OUTLINE),
+            (llm_text, ModelTier.TEXT),
+            (llm_check_title, ModelTier.CHECK_TITLE),
+            (llm_title_abstract, ModelTier.TITLE_ABSTRACT),
+            (get_llm_low, ModelTier.LOW),
+            (get_llm_high, ModelTier.HIGH),
+        ]
+        step_env_vars = [env_var for env_var, _ in _STEP_DEFINITIONS.values()]
+        with patch.object(llm_model_module, "DEFAULT_PROVIDER", LLMProvider.OPENAI):
+            with patch.dict(os.environ, {}, clear=False):
+                # Ensure no per-step overrides are present
+                for var in step_env_vars:
+                    os.environ.pop(var, None)
+                with patch.object(llm_model_module, "create_llm") as mock_create:
+                    for fn, expected_tier in step_fns:
+                        mock_create.reset_mock()
+                        fn()
+                        args = mock_create.call_args[0]
+                        with self.subTest(tier=expected_tier):
+                            self.assertEqual(args[0], LLMProvider.OPENAI)
+                            self.assertEqual(args[1], expected_tier)
+
+    def test_text_provider_overrides_global(self):
+        """TEXT_PROVIDER=gemini makes llm_text() use GEMINI."""
+        args = self._patch_env_and_create_llm({"TEXT_PROVIDER": "gemini"}, llm_text)
+        self.assertEqual(args[0], LLMProvider.GEMINI)
+        self.assertEqual(args[1], ModelTier.TEXT)
+
+    def test_check_title_provider_overrides_global(self):
+        """CHECK_TITLE_PROVIDER=mistral makes llm_check_title() use MISTRAL."""
+        args = self._patch_env_and_create_llm(
+            {"CHECK_TITLE_PROVIDER": "mistral"}, llm_check_title
+        )
+        self.assertEqual(args[0], LLMProvider.MISTRAL)
+        self.assertEqual(args[1], ModelTier.CHECK_TITLE)
+
+    def test_title_abstract_provider_overrides_global(self):
+        """TITLE_ABSTRACT_PROVIDER=gemini makes llm_title_abstract() use GEMINI."""
+        args = self._patch_env_and_create_llm(
+            {"TITLE_ABSTRACT_PROVIDER": "gemini"}, llm_title_abstract
+        )
+        self.assertEqual(args[0], LLMProvider.GEMINI)
+        self.assertEqual(args[1], ModelTier.TITLE_ABSTRACT)
+
+    def test_low_provider_overrides_global(self):
+        """LOW_PROVIDER=gemini makes get_llm_low() use GEMINI."""
+        args = self._patch_env_and_create_llm({"LOW_PROVIDER": "gemini"}, get_llm_low)
+        self.assertEqual(args[0], LLMProvider.GEMINI)
+        self.assertEqual(args[1], ModelTier.LOW)
+
+    def test_high_provider_overrides_global(self):
+        """HIGH_PROVIDER=gemini makes get_llm_high() use GEMINI."""
+        args = self._patch_env_and_create_llm({"HIGH_PROVIDER": "gemini"}, get_llm_high)
+        self.assertEqual(args[0], LLMProvider.GEMINI)
+        self.assertEqual(args[1], ModelTier.HIGH)
+
+
+@pytest.mark.unit
+class TestGetLLMConfigSummary(unittest.TestCase):
+    """get_llm_config_summary() returns the correct provider and model for every step."""
+
+    _EXPECTED_STEPS = set(_STEP_DEFINITIONS)
+
+    def test_returns_dict_with_all_steps(self):
+        summary = get_llm_config_summary()
+        self.assertEqual(set(summary.keys()), self._EXPECTED_STEPS)
+
+    def test_each_entry_has_provider_and_model_keys(self):
+        summary = get_llm_config_summary()
+        for step, info in summary.items():
+            with self.subTest(step=step):
+                self.assertIn("provider", info)
+                self.assertIn("model", info)
+                self.assertIsInstance(info["provider"], str)
+                self.assertIsInstance(info["model"], str)
+                self.assertTrue(info["provider"])
+                self.assertTrue(info["model"])
+
+    def test_analyst_override_reflected_in_summary(self):
+        """ANALYST_PROVIDER=gemini routes to GEMINI; MODEL_REGISTRY is patched to
+        return gemini-2.5-flash for that tier (model-name env vars are import-time)."""
+        with patch.object(llm_model_module, "DEFAULT_PROVIDER", LLMProvider.OPENAI):
+            with patch.dict(os.environ, {"ANALYST_PROVIDER": "gemini"}, clear=False):
+                patched_registry = {
+                    provider: dict(tiers) for provider, tiers in MODEL_REGISTRY.items()
+                }
+                patched_registry[LLMProvider.GEMINI][ModelTier.ANALYST] = (
+                    "gemini-2.5-flash"
+                )
+                with patch.object(llm_model_module, "MODEL_REGISTRY", patched_registry):
+                    summary = get_llm_config_summary()
+
+        self.assertEqual(summary["analyst"]["provider"], "gemini")
+        self.assertEqual(summary["analyst"]["model"], "gemini-2.5-flash")
+
+    def test_no_overrides_all_steps_use_default_provider(self):
+        """With no per-step env vars, every step reports the DEFAULT_PROVIDER."""
+        step_env_vars = [env_var for env_var, _ in _STEP_DEFINITIONS.values()]
+        with patch.object(llm_model_module, "DEFAULT_PROVIDER", LLMProvider.OPENAI):
+            with patch.dict(os.environ, {}, clear=False):
+                for var in step_env_vars:
+                    os.environ.pop(var, None)
+                summary = get_llm_config_summary()
+
+        for step in self._EXPECTED_STEPS:
+            with self.subTest(step=step):
+                self.assertEqual(summary[step]["provider"], "openai")
+
+    def test_summary_model_matches_registry(self):
+        """Summary model names match MODEL_REGISTRY defaults for the resolved provider."""
+        with patch.object(llm_model_module, "DEFAULT_PROVIDER", LLMProvider.OPENAI):
+            summary = get_llm_config_summary()
+
+        tier_map = {step: tier for step, (_, tier) in _STEP_DEFINITIONS.items()}
+        for step, info in summary.items():
+            provider = LLMProvider(info["provider"])
+            expected_model = MODEL_REGISTRY[provider][tier_map[step]]
+            with self.subTest(step=step):
+                self.assertEqual(info["model"], expected_model)
+
+
+@pytest.mark.unit
+class TestGetLLMConfigSummaryExport(unittest.TestCase):
+    """get_llm_config_summary is exported from the top-level package."""
+
+    def test_importable_from_package(self):
+        from black_langcube import get_llm_config_summary as fn
+
+        self.assertTrue(callable(fn))
+
+    def test_in_all(self):
+        import black_langcube
+
+        self.assertIn("get_llm_config_summary", black_langcube.__all__)
 
 
 if __name__ == "__main__":

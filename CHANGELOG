@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.2] - 2026-04-08
+
+### Feature: per-step LLM provider and model configuration via environment variables (BP-5)
+
+- All step factory functions (`llm_analyst()`, `llm_outline()`, `llm_text()`, `llm_check_title()`, `llm_title_abstract()`, `get_llm_low()`, `get_llm_high()`) already used `_resolve_provider()` with their dedicated `{STEP}_PROVIDER` env vars (introduced by BP-2); audited and confirmed — no code changes needed for factory functions
+- Added `get_llm_config_summary()` to `llm_modules/llm_model.py`: returns a `dict[str, dict[str, str]]` with the resolved `provider` and `model` for every step (`analyst`, `outline`, `text`, `check_title`, `title_abstract`, `low`, `high`); uses two private module-level dicts (`_STEP_ENV_VARS`, `_STEP_TIERS`) as the single source of step-to-env-var and step-to-tier mappings to avoid magic values
+- Exported `get_llm_config_summary` from `src/black_langcube/__init__.py` and added it to `__all__`
+- Created `.env.example` at the project root documenting every configurable environment variable introduced by BP-2 and BP-5: `PROVIDER`, all seven `{STEP}_PROVIDER` overrides, all 21 `{PROVIDER}_MODEL_{STEP}` model name overrides (OpenAI, Gemini, Mistral), API keys (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`), `STORAGE_MODE`, `DATABASE_URL`, and optional LangSmith vars; each entry has its default value shown and a one-line description
+- Added **"LLM Configuration"** section to `README.md` inside `## 🔧 Configuration`: documents global `PROVIDER` env var, per-step `{STEP}_PROVIDER` override table, per-step model name overrides via `{PROVIDER}_MODEL_{STEP}`, a worked mixed-provider example (Gemini for analyst/text, OpenAI for outline/check_title), `get_llm_config_summary()` usage with sample output, and a note on optional provider dependencies (`gemini`, `mistral` extras); updated the opening sentence to reference `.env.example`
+- Added `TestPerStepProviderOverride` (8 tests): verifies `ANALYST_PROVIDER=gemini` routes to `LLMProvider.GEMINI`/`ModelTier.ANALYST` while `llm_outline()` stays on `DEFAULT_PROVIDER`; verifies all seven steps fall back to `DEFAULT_PROVIDER` when no overrides are set; covers `text`, `check_title`, `title_abstract`, `low`, `high` overrides individually
+- Added `TestGetLLMConfigSummary` (5 tests): verifies the summary dict has exactly the seven expected step keys; each entry has non-empty `provider` and `model` string values; `ANALYST_PROVIDER=gemini` + patched `MODEL_REGISTRY` yields `provider=gemini, model=gemini-2.5-flash` for the analyst step; no-override case reports `openai` for all steps; model names match `MODEL_REGISTRY` for the resolved provider
+- Added `TestGetLLMConfigSummaryExport` (2 tests): verifies `get_llm_config_summary` is importable from `black_langcube` and present in `black_langcube.__all__`
+- Added `get_llm_config_summary` to the import in `tests/test_llm_model.py`
+- All 229 tests pass; `ruff format` and `ruff check --fix` clean
+
 ## [0.4.1] - 2026-04-07
 
 ### Feature: structured testing infrastructure with in-memory DB fixtures and LLM mocking (BP-7)
