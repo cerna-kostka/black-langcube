@@ -11,7 +11,11 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
+from black_langcube.database.operations import DatabaseService
 from black_langcube.helper_modules.submodules import SessionCreator, end_process
+from black_langcube.helper_modules.session_validator import (
+    validate_session_continuity_async,
+)
 
 from black_langcube.graf.graf1 import Graph1
 from black_langcube.graf.graf2 import Graph2
@@ -27,6 +31,7 @@ async def run_workflow_by_id(
     workflow_id: Union[str, int],
     folder_name: str,
     language: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Run a specific workflow based on the provided workflow ID.
@@ -39,12 +44,17 @@ async def run_workflow_by_id(
         workflow_id (str|int): Identifier for which workflow to run (1-5)
         folder_name (str): Directory path for output files
         language (str, optional): Language for processing. Defaults to None.
+        session_id (str, optional): Session UUID for continuity validation.
+            When provided and workflow_id > 1, the session's current_node_id
+            must equal workflow_id - 1, otherwise ValueError is raised.
 
     Returns:
         Dict[str, Any]: Structured result containing workflow output and metadata
 
     Raises:
-        ValueError: If workflow_id is not recognized
+        ValueError: If workflow_id is not recognized, or if session_id is
+            provided and the session's current_node_id does not match the
+            expected predecessor node.
         RuntimeError: If workflow execution fails
     """
 
@@ -52,8 +62,13 @@ async def run_workflow_by_id(
         f"Starting workflow {workflow_id} with message: {user_message[:100]}..."
     )
 
-    # Normalize workflow_id to string for consistent handling
-    workflow_id = str(workflow_id)
+    # Normalise workflow_id once: keep int copy for comparisons, str for dispatch.
+    _workflow_id_int = int(workflow_id)
+    workflow_id = str(_workflow_id_int)
+
+    # Guard against out-of-order pipeline execution when a session is tracked.
+    if session_id is not None and _workflow_id_int > 1:
+        await validate_session_continuity_async(session_id, _workflow_id_int)
 
     # Create session and prepare folder structure
     _session_result = SessionCreator()
@@ -63,21 +78,27 @@ async def run_workflow_by_id(
 
     try:
         if workflow_id == "1":
-            return await _run_graph1(user_message, folder_name, language)
+            result = await _run_graph1(user_message, folder_name, language)
         elif workflow_id == "2":
-            return await _run_graph2(user_message, folder_name, language)
+            result = await _run_graph2(user_message, folder_name, language)
         elif workflow_id == "3":
-            return await _run_graph3(user_message, folder_name, language)
+            result = await _run_graph3(user_message, folder_name, language)
         elif workflow_id == "4":
-            return await _run_graph4(user_message, folder_name, language)
+            result = await _run_graph4(user_message, folder_name, language)
         elif workflow_id == "5":
-            return await _run_graph5(user_message, folder_name, language)
+            result = await _run_graph5(user_message, folder_name, language)
         else:
             raise ValueError(f"Unknown workflow ID: {workflow_id}")
 
     except Exception as e:
         logger.error(f"Error in workflow {workflow_id}: {str(e)}")
         raise RuntimeError(f"Workflow {workflow_id} execution failed: {str(e)}") from e
+
+    if session_id is not None:
+        async with DatabaseService() as db:
+            await db.update_session_current_node_id(session_id, _workflow_id_int)
+
+    return result
 
 
 async def _run_graph1(

@@ -139,9 +139,47 @@ test URL.
 
 ### 5. Processing Entry Points (`process.py`)
 Main library interface functions:
-- `run_workflow_by_id()`: Execute individual workflows
+- `run_workflow_by_id()`: Execute individual workflows (supports optional `session_id` for continuity validation)
 - `run_complete_pipeline()`: Run sequential workflow chains
 - `cleanup_session()`: Session management
+
+### 6. Session Continuity Validator (`helper_modules/session_validator.py`)
+
+`validate_session_continuity_async(session_id, current_node_id)` guards against
+out-of-order pipeline execution when the library is consumed in a web application
+context.  It prevents replay attacks and duplicate processing by verifying that
+the requested node is the logical successor of the session's last completed node.
+
+#### When it is called
+
+`run_workflow_by_id()` invokes the validator **before dispatching any graph** when
+all of the following are true:
+
+1. A `session_id` is provided to the call.
+2. `current_node_id > 1` (the first node always runs unconditionally; a new
+   session has no predecessor to check).
+
+```python
+# Example: correct sequential calls
+await run_workflow_by_id(msg, 1, folder, session_id="abc")  # skipped (first node)
+await run_workflow_by_id(msg, 2, folder, session_id="abc")  # validates: session.current_node_id == 1
+await run_workflow_by_id(msg, 3, folder, session_id="abc")  # validates: session.current_node_id == 2
+
+# Example: out-of-order call → raises ValueError
+await run_workflow_by_id(msg, 3, folder, session_id="abc")  # raises if current_node_id != 2
+```
+
+#### Error contract
+
+| Condition | Exception |
+|---|---|
+| `session_id` not found in database | `ValueError: Session <id> not found.` |
+| `session.current_node_id != current_node_id - 1` | `ValueError: Session <id> is at node <n>, but caller requested node <m>.` |
+| First node (`current_node_id == 1`) | No exception, no database access |
+
+The `ValueError` is raised **before** the `try/except RuntimeError` wrapper in
+`run_workflow_by_id`, so it propagates directly to the caller without being
+re-wrapped as `RuntimeError`.
 
 ## Development Workflow
 
