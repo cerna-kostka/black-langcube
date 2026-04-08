@@ -172,16 +172,36 @@ def create_llm(provider: LLMProvider, tier: ModelTier) -> BaseChatModel:
 
 
 # ---------------------------------------------------------------------------
+# Step definitions — single source of truth for env-var name and model tier
+# ---------------------------------------------------------------------------
+
+_STEP_DEFINITIONS: dict[str, tuple[str, ModelTier]] = {
+    "analyst": ("ANALYST_PROVIDER", ModelTier.ANALYST),
+    "outline": ("OUTLINE_PROVIDER", ModelTier.OUTLINE),
+    "text": ("TEXT_PROVIDER", ModelTier.TEXT),
+    "check_title": ("CHECK_TITLE_PROVIDER", ModelTier.CHECK_TITLE),
+    "title_abstract": ("TITLE_ABSTRACT_PROVIDER", ModelTier.TITLE_ABSTRACT),
+    "low": ("LOW_PROVIDER", ModelTier.LOW),
+    "high": ("HIGH_PROVIDER", ModelTier.HIGH),
+}
+
+
+def _create_llm_for_step(step: str) -> BaseChatModel:
+    env_var, tier = _STEP_DEFINITIONS[step]
+    return create_llm(_resolve_provider(env_var), tier)
+
+
+# ---------------------------------------------------------------------------
 # Backward-compatible public aliases
 # ---------------------------------------------------------------------------
 
 
 def get_llm_low() -> BaseChatModel:
-    return create_llm(_resolve_provider("LOW_PROVIDER"), ModelTier.LOW)
+    return _create_llm_for_step("low")
 
 
 def get_llm_high() -> BaseChatModel:
-    return create_llm(_resolve_provider("HIGH_PROVIDER"), ModelTier.HIGH)
+    return _create_llm_for_step("high")
 
 
 def default_llm() -> BaseChatModel:
@@ -189,22 +209,50 @@ def default_llm() -> BaseChatModel:
 
 
 def llm_analyst() -> BaseChatModel:
-    return create_llm(_resolve_provider("ANALYST_PROVIDER"), ModelTier.ANALYST)
+    return _create_llm_for_step("analyst")
 
 
 def llm_outline() -> BaseChatModel:
-    return create_llm(_resolve_provider("OUTLINE_PROVIDER"), ModelTier.OUTLINE)
+    return _create_llm_for_step("outline")
 
 
 def llm_text() -> BaseChatModel:
-    return create_llm(_resolve_provider("TEXT_PROVIDER"), ModelTier.TEXT)
+    return _create_llm_for_step("text")
 
 
 def llm_check_title() -> BaseChatModel:
-    return create_llm(_resolve_provider("CHECK_TITLE_PROVIDER"), ModelTier.CHECK_TITLE)
+    return _create_llm_for_step("check_title")
 
 
 def llm_title_abstract() -> BaseChatModel:
-    return create_llm(
-        _resolve_provider("TITLE_ABSTRACT_PROVIDER"), ModelTier.TITLE_ABSTRACT
-    )
+    return _create_llm_for_step("title_abstract")
+
+
+# ---------------------------------------------------------------------------
+# Debug helper
+# ---------------------------------------------------------------------------
+
+
+def get_llm_config_summary() -> dict[str, dict[str, str]]:
+    """Return the resolved (provider, model_name) for every step.
+
+    Useful for verifying configuration at startup or in test output.
+
+    Example return value::
+
+        {
+            "analyst":        {"provider": "gemini", "model": "gemini-2.5-pro"},
+            "outline":        {"provider": "openai", "model": "gpt-4.1"},
+            "text":           {"provider": "gemini", "model": "gemini-2.5-pro"},
+            "check_title":    {"provider": "openai", "model": "gpt-4.1"},
+            "title_abstract": {"provider": "openai", "model": "gpt-4.1"},
+            "low":            {"provider": "openai", "model": "gpt-4o-mini"},
+            "high":           {"provider": "openai", "model": "gpt-4.1"},
+        }
+    """
+    summary: dict[str, dict[str, str]] = {}
+    for step, (env_var, tier) in _STEP_DEFINITIONS.items():
+        provider = _resolve_provider(env_var)
+        model = MODEL_REGISTRY[provider][tier]
+        summary[step] = {"provider": provider.value, "model": model}
+    return summary

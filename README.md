@@ -160,7 +160,9 @@ result = translator.run(extra_input={
 
 ## 🔧 Configuration
 
-The library uses environment variables for configuration. Create a `.env` file:
+The library uses environment variables for configuration. Copy `.env.example`
+from the project root to `.env` and fill in your values — it documents every
+configurable variable with its default and a one-line description.
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
@@ -168,6 +170,101 @@ OPENAI_API_KEY=your_openai_api_key_here
 # optional: LangChain configuration
 LANGCHAIN_API_KEY=your_langchain_api_key_here
 LANGCHAIN_TRACING_V2=true
+```
+
+### LLM Configuration
+
+#### Global provider
+
+Set `PROVIDER` to choose the default LLM provider for every processing step:
+
+```env
+PROVIDER=openai   # openai (default) | gemini | mistral
+```
+
+#### Per-step provider overrides
+
+Each pipeline step can use a different provider without changing any code.
+Set `{STEP}_PROVIDER` to override only that step; all other steps continue to
+use `PROVIDER`:
+
+| Step | Override variable | Example |
+|------|-------------------|---------|
+| `llm_analyst()` | `ANALYST_PROVIDER` | `ANALYST_PROVIDER=gemini` |
+| `llm_outline()` | `OUTLINE_PROVIDER` | `OUTLINE_PROVIDER=openai` |
+| `llm_text()` | `TEXT_PROVIDER` | `TEXT_PROVIDER=gemini` |
+| `llm_check_title()` | `CHECK_TITLE_PROVIDER` | `CHECK_TITLE_PROVIDER=openai` |
+| `llm_title_abstract()` | `TITLE_ABSTRACT_PROVIDER` | `TITLE_ABSTRACT_PROVIDER=openai` |
+| `get_llm_low()` | `LOW_PROVIDER` | `LOW_PROVIDER=mistral` |
+| `get_llm_high()` | `HIGH_PROVIDER` | `HIGH_PROVIDER=openai` |
+
+#### Per-step model name overrides
+
+Override the model name for a specific `(provider, step)` combination using
+`{PROVIDER}_MODEL_{STEP}`:
+
+```env
+OPENAI_MODEL_LOW=gpt-4o-mini        # default
+OPENAI_MODEL_HIGH=gpt-4.1           # default
+GEMINI_MODEL_ANALYST=gemini-2.5-pro # default
+GEMINI_MODEL_CHECK_TITLE=gemini-2.5-flash  # use cheaper model for title checks
+```
+
+> **Note:** `{STEP}_PROVIDER` overrides are read on every factory call and take
+> effect immediately without a restart. `{PROVIDER}_MODEL_{STEP}` overrides are
+> evaluated once at module import time — a process restart is required for
+> changes to model-name env vars to take effect.
+
+#### Mixed-provider example
+
+Use Gemini for cost-sensitive steps and OpenAI for quality-critical ones
+without any code changes:
+
+```env
+PROVIDER=openai                  # default for all unspecified steps
+
+ANALYST_PROVIDER=gemini          # cost-sensitive analysis
+TEXT_PROVIDER=gemini             # cost-sensitive text generation
+OUTLINE_PROVIDER=openai          # quality-critical outline
+CHECK_TITLE_PROVIDER=openai      # quality-critical title check
+
+GEMINI_API_KEY=your-gemini-key-here
+OPENAI_API_KEY=your-openai-key-here
+```
+
+#### Verifying the resolved configuration
+
+Use `get_llm_config_summary()` to print the resolved `(provider, model)` for
+every step — useful at startup or in test logs:
+
+```python
+from black_langcube import get_llm_config_summary
+
+summary = get_llm_config_summary()
+for step, info in summary.items():
+    print(f"{step:20s} provider={info['provider']}  model={info['model']}")
+```
+
+Example output with the mixed-provider configuration above:
+
+```
+analyst              provider=gemini  model=gemini-2.5-pro
+outline              provider=openai  model=gpt-4.1
+text                 provider=gemini  model=gemini-2.5-pro
+check_title          provider=openai  model=gpt-4.1
+title_abstract       provider=openai  model=gpt-4.1
+low                  provider=openai  model=gpt-4o-mini
+high                 provider=openai  model=gpt-4.1
+```
+
+#### Optional provider dependencies
+
+The default `pip install black_langcube` includes only the OpenAI integration.
+Install additional extras for other providers:
+
+```bash
+pip install black_langcube[gemini]   # adds langchain-google-genai
+pip install black_langcube[mistral]  # adds langchain-mistralai
 ```
 
 ### Fail-Fast Validation
