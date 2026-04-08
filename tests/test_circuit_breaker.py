@@ -10,7 +10,7 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -19,6 +19,10 @@ sys.path.insert(0, str(project_root / "src"))
 
 import openai  # noqa: E402
 
+from black_langcube.llm_modules.robust_invoke import _SERVICE_NAME as SYNC_SERVICE_NAME  # noqa: E402
+from black_langcube.llm_modules.robust_invoke_async import (  # noqa: E402
+    _SERVICE_NAME as ASYNC_SERVICE_NAME,
+)
 from black_langcube.llm_modules.circuit_breaker import (  # noqa: E402
     CircuitBreaker,
     CircuitBreakerOpenError,
@@ -490,8 +494,8 @@ class TestRobustInvokeAsyncCircuitBreaker(unittest.IsolatedAsyncioTestCase):
         return await robust_invoke_async(chain, **kwargs)
 
     def _open_circuit(self):
-        """Force the openai_api circuit into OPEN state."""
-        cb = async_get_circuit_breaker("openai_api")
+        """Force the active-provider async circuit into OPEN state."""
+        cb = async_get_circuit_breaker(ASYNC_SERVICE_NAME)
         cb._state = AsyncCircuitState.OPEN
         cb._opened_at = time.time()
         return cb
@@ -507,31 +511,18 @@ class TestRobustInvokeAsyncCircuitBreaker(unittest.IsolatedAsyncioTestCase):
     async def test_rate_limit_error_does_not_open_circuit(self):
         chain = MagicMock()
         chain.ainvoke = AsyncMock(side_effect=_rate_limit_error())
+        result, _ = await self._invoke(chain, max_retries=1)
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb.prompt_tokens = 0
-            mock_cb.completion_tokens = 0
-            mock_cb.total_cost = 0
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            result, _ = await self._invoke(chain, max_retries=1)
-
-        cb = async_get_circuit_breaker("openai_api")
+        cb = async_get_circuit_breaker(ASYNC_SERVICE_NAME)
         self.assertEqual(cb._failure_count, 0)
         self.assertEqual(cb.state, AsyncCircuitState.CLOSED)
 
     async def test_connection_error_is_recorded_by_circuit_breaker(self):
         chain = MagicMock()
         chain.ainvoke = AsyncMock(side_effect=_connection_error())
+        result, _ = await self._invoke(chain, max_retries=1)
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            result, _ = await self._invoke(chain, max_retries=1)
-
-        cb = async_get_circuit_breaker("openai_api")
+        cb = async_get_circuit_breaker(ASYNC_SERVICE_NAME)
         self.assertEqual(cb._failure_count, 1)
         self.assertIn("error", result)
 
@@ -540,15 +531,11 @@ class TestRobustInvokeAsyncCircuitBreaker(unittest.IsolatedAsyncioTestCase):
         chain = MagicMock()
         chain.ainvoke = AsyncMock(side_effect=_connection_error())
 
-        cb = async_get_circuit_breaker("openai_api")
+        cb = async_get_circuit_breaker(ASYNC_SERVICE_NAME)
         threshold = cb._failure_threshold
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            for _ in range(threshold):
-                await self._invoke(chain, max_retries=1)
+        for _ in range(threshold):
+            await self._invoke(chain, max_retries=1)
 
         self.assertEqual(cb.state, AsyncCircuitState.OPEN)
 
@@ -577,8 +564,8 @@ class TestRobustInvokeCircuitBreaker(unittest.TestCase):
         return robust_invoke(chain, **kwargs)
 
     def _open_circuit(self):
-        """Force the openai_api circuit into OPEN state."""
-        cb = get_circuit_breaker("openai_api")
+        """Force the active-provider sync circuit into OPEN state."""
+        cb = get_circuit_breaker(SYNC_SERVICE_NAME)
         cb._state = CircuitState.OPEN
         cb._opened_at = time.time()
         return cb
@@ -594,31 +581,18 @@ class TestRobustInvokeCircuitBreaker(unittest.TestCase):
     def test_rate_limit_error_does_not_open_circuit(self):
         chain = MagicMock()
         chain.invoke = MagicMock(side_effect=_rate_limit_error())
+        result, _ = self._invoke(chain, max_retries=1)
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb.prompt_tokens = 0
-            mock_cb.completion_tokens = 0
-            mock_cb.total_cost = 0
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            result, _ = self._invoke(chain, max_retries=1)
-
-        cb = get_circuit_breaker("openai_api")
+        cb = get_circuit_breaker(SYNC_SERVICE_NAME)
         self.assertEqual(cb._failure_count, 0)
         self.assertEqual(cb.state, CircuitState.CLOSED)
 
     def test_connection_error_is_recorded_by_circuit_breaker(self):
         chain = MagicMock()
         chain.invoke = MagicMock(side_effect=_connection_error())
+        result, _ = self._invoke(chain, max_retries=1)
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            result, _ = self._invoke(chain, max_retries=1)
-
-        cb = get_circuit_breaker("openai_api")
+        cb = get_circuit_breaker(SYNC_SERVICE_NAME)
         self.assertEqual(cb._failure_count, 1)
         self.assertIn("error", result)
 
@@ -627,15 +601,11 @@ class TestRobustInvokeCircuitBreaker(unittest.TestCase):
         chain = MagicMock()
         chain.invoke = MagicMock(side_effect=_connection_error())
 
-        cb = get_circuit_breaker("openai_api")
+        cb = get_circuit_breaker(SYNC_SERVICE_NAME)
         threshold = cb._failure_threshold
 
-        with patch("langchain_community.callbacks.get_openai_callback") as mock_cb_ctx:
-            mock_cb = MagicMock()
-            mock_cb_ctx.return_value.__enter__ = MagicMock(return_value=mock_cb)
-            mock_cb_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            for _ in range(threshold):
-                self._invoke(chain, max_retries=1)
+        for _ in range(threshold):
+            self._invoke(chain, max_retries=1)
 
         self.assertEqual(cb.state, CircuitState.OPEN)
 
