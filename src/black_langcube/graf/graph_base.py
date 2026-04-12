@@ -19,6 +19,7 @@ Key Methods in BaseGraph:
     - compile: Compiles the workflow graph.
     - graph_streaming: Streams the execution of the graph with a given state.
     - write_events_to_file: Serializes and writes graph events to a file.
+    - save_events_to_database: Hook invoked when folder_name is None; override in subclasses.
     - custom_json_serializer: Helper for serializing non-standard objects to JSON.
     - get_language: Retrieves the language setting from a previous graph output.
     - get_message: Retrieves a workflow-specific message function.
@@ -201,7 +202,17 @@ class BaseGraph:
             ) from e
 
     async def write_events_to_file(self, events, output_filename: str):
+        """
+        Serialize *events* and append them as JSON lines to *output_filename* inside
+        the workflow sub-folder derived from ``folder_name``.
+
+        When ``folder_name`` is not set (database-only mode), the method delegates to
+        :meth:`save_events_to_database` and returns ``None`` without touching the
+        filesystem.  Subclasses that require database persistence should override
+        :meth:`save_events_to_database` rather than this method.
+        """
         if not self.folder_name:
+            await self.save_events_to_database(events, output_filename)
             return None
         # Ensure folder_name is a string by calling it if it's callable.
         folder = self.folder_name() if callable(self.folder_name) else self.folder_name
@@ -239,6 +250,28 @@ class BaseGraph:
             ) from e
 
         return subfolder
+
+    async def save_events_to_database(self, events, output_filename: str):
+        """
+        Extension hook for persisting *events* when no filesystem folder is configured.
+
+        This method is called by :meth:`write_events_to_file` whenever ``folder_name``
+        is ``None`` (or otherwise falsy).  The default implementation is intentionally
+        a no-op so that existing deployments that do not require database storage are
+        unaffected.
+
+        Override this method in a subclass to persist events to a database or any
+        other storage backend::
+
+            class MyGraph(BaseGraph):
+                async def save_events_to_database(self, events, output_filename):
+                    await db.store(self.session_id, output_filename, events)
+
+        Args:
+            events: The list of event dicts collected during graph streaming.
+            output_filename: The logical file name that would have been used had
+                a folder been configured (e.g. ``"graph1_output.json"``).
+        """
 
     # to help with JSON serialization for HumanMessage
     def custom_json_serializer(obj, extra_input=None):

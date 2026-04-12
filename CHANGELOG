@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.5] - 2026-04-12
+
+### Feature: overridable `save_events_to_database()` hook on `BaseGraph` (BP-25)
+
+- Added async `save_events_to_database(self, events, output_filename)` method to `BaseGraph` with a no-op default implementation and a full docstring describing the override contract.
+- Modified `write_events_to_file()` so that when `folder_name` is falsy (database-only mode) it calls `await self.save_events_to_database(events, output_filename)` before returning `None`, instead of silently doing nothing.
+- The default `save_events_to_database()` is a safe no-op; existing behaviour when `folder_name` is set is unchanged.
+- Subclasses can now override `save_events_to_database()` to persist events to any storage backend without needing to override or locally patch `write_events_to_file()`.
+- Updated module-level docstring in `graph_base.py` to list the new method in the "Key Methods" section.
+- Added 3 unit tests to `tests/test_session_id_basegraph.py`:
+  - `test_calls_save_events_to_database_when_no_folder_name` — asserts delegation occurs when `folder_name` is `None`.
+  - `test_does_not_call_save_events_to_database_when_folder_name_set` — asserts no delegation when `folder_name` is set.
+  - `test_subclass_override_receives_correct_args` — verifies a subclass override receives the exact `events` and `output_filename` arguments.
+
+---
+
 ## [0.4.4] - 2026-04-08
 
 ### Feature: provider-agnostic `robust_invoke` and `robust_invoke_async` (BP-23)
