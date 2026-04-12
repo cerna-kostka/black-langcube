@@ -9,13 +9,16 @@ Covers:
 - graph_name is injected into the initial state passed to astream
 - get_subfolder() returns None when folder_name is None
 - write_events_to_file() returns None when folder_name is None
+- write_events_to_file() calls save_events_to_database() when folder_name is None
+- write_events_to_file() does NOT call save_events_to_database() when folder_name is set
+- subclass override of save_events_to_database() receives correct arguments
 - GraphState contains a graph_name field
 """
 
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -117,12 +120,59 @@ class TestGetSubfolder(unittest.TestCase):
 
 @pytest.mark.unit
 class TestWriteEventsToFile(unittest.IsolatedAsyncioTestCase):
-    """write_events_to_file() returns None and skips I/O in database mode."""
+    """write_events_to_file() delegation behaviour for the save_events_to_database hook."""
 
     async def test_returns_none_when_no_folder_name(self):
         g = _make_graph(session_id="abc-123")
         result = await g.write_events_to_file([{"some": "event"}], "output.json")
         self.assertIsNone(result)
+
+    async def test_calls_save_events_to_database_when_no_folder_name(self):
+        """write_events_to_file() delegates to save_events_to_database when folder_name is None."""
+        g = _make_graph(session_id="abc-123")
+        g.save_events_to_database = AsyncMock()
+        events = [{"key": "value"}]
+
+        await g.write_events_to_file(events, "output.json")
+
+        g.save_events_to_database.assert_awaited_once_with(events, "output.json")
+
+    async def test_does_not_call_save_events_to_database_when_folder_name_set(self):
+        """write_events_to_file() skips save_events_to_database when folder_name is set."""
+        g = _make_graph(folder_name="results/session")
+        g.save_events_to_database = AsyncMock()
+
+        with (
+            patch("black_langcube.graf.graph_base.aiofiles.open"),
+            patch("black_langcube.graf.graph_base.Path.mkdir"),
+        ):
+            await g.write_events_to_file([{"key": "value"}], "output.json")
+
+        g.save_events_to_database.assert_not_awaited()
+
+
+@pytest.mark.unit
+class TestSaveEventsToDatabaseOverride(unittest.IsolatedAsyncioTestCase):
+    """Subclass override of save_events_to_database() receives the correct arguments."""
+
+    async def test_subclass_override_receives_correct_args(self):
+        received: list = []
+
+        class _DBGraph(BaseGraph):
+            @property
+            def workflow_name(self):
+                return "test_graph"
+
+            async def save_events_to_database(self, events, output_filename):
+                received.append((events, output_filename))
+
+        g = _DBGraph(GraphState, "hello", folder_name=None, session_id="abc-123")
+        events = [{"a": 1}, {"b": 2}]
+        await g.write_events_to_file(events, "result.json")
+
+        self.assertEqual(len(received), 1)
+        self.assertIs(received[0][0], events)
+        self.assertEqual(received[0][1], "result.json")
 
 
 @pytest.mark.unit
