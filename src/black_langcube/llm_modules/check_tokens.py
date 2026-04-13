@@ -10,12 +10,13 @@ Uncomment the print statements or the function calls at the bottom of the script
 
 import tiktoken
 
+# Fixed to "gpt-4o": no automatic mapping exists for model 4.1; OpenAI states
+# that gpt-4o and gpt-4.1 share the same tokeniser.
+_ENCODING = tiktoken.encoding_for_model("gpt-4o")
+
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
-    encoding = tiktoken.encoding_for_model(
-        "gpt-4o"
-    )  # fixed to "gpt-4o" due to not available automatic mapping for model 4.1, besides, opanAI claims 4o and 4.1 have the same tokeniser
-    num_tokens = len(encoding.encode(string))
+    num_tokens = len(_ENCODING.encode(string))
     # print(f"Number of tokens in string: {num_tokens}") # Uncomment for debugging
     return num_tokens

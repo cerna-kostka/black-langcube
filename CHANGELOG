@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.11] - 2026-04-13
+
+### Performance: cache tiktoken encoder at module level in `check_tokens` (BP-31)
+
+- **Module-level `_ENCODING` constant** added to `llm_modules/check_tokens.py`:
+  - `tiktoken.encoding_for_model("gpt-4o")` is now called exactly once at import time, not on every invocation of `num_tokens_from_string`.
+  - Eliminates the ~200 ms BPE initialisation latency on the first call and prevents blocking the asyncio event loop in concurrent scenarios.
+  - The model name `"gpt-4o"` appears only in the `_ENCODING` assignment.
+- **`num_tokens_from_string` refactored** — replaced the in-function encoder lookup with a reference to `_ENCODING`; public signature is unchanged.
+- **4 new tests** in `tests/test_check_tokens.py`:
+  - `_ENCODING` is a `tiktoken.Encoding` instance.
+  - Known input returns the correct token count.
+  - Empty string returns zero.
+  - Return type is `int`.
+- 307 unit tests now pass (including the 4 new ones added above).
+
+---
+
 ## [0.4.10] - 2026-04-13
 
 ### Feature: `GOOGLE_API_KEY` as a fallback alias for `GEMINI_API_KEY` (BP-30)
