@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.7] - 2026-04-13
+
+### Feature: lenient (non-raising) mode for `validate_session_continuity_async` (BP-27)
+
+- **`raise_on_error` parameter** added to `validate_session_continuity_async()` in `helper_modules/session_validator.py`:
+  - Signature updated to `async def validate_session_continuity_async(session_id, current_node_id, *, raise_on_error: bool = True) -> None | dict`.
+  - Default value `True` preserves existing behaviour — `ValueError` is still raised on every validation failure.
+  - When `raise_on_error=False` the function returns a structured dict on failure and `None` on success:
+    - Session not found → `{"error": "Session <id> not found.", "code": 404}`
+    - Node out of order → `{"error": "Session <id> is at node <n>, but caller requested node <m>.", "code": 409}`
+- **No changes to `process.py`** — the existing call site passes no `raise_on_error` argument and continues to raise.
+- **Module-level constants** `_NOT_FOUND_CODE = 404` and `_OUT_OF_ORDER_CODE = 409` introduced to avoid magic values.
+- **Docstring updated** — documents `raise_on_error`, both return shapes, and the revised `Raises` / `Returns` sections.
+- **6 new tests** in `tests/test_session_validator.py` (`TestValidateSessionContinuityAsyncLenientMode`) covering: 404 dict on missing session, 409 dict on out-of-order node, `None` on valid continuation, `None` on first node, and two regression tests confirming the raising path is unaffected.
+- 318 tests now pass (including the 6 new ones added above).
+
+---
+
 ## [0.4.6] - 2026-04-13
 
 ### Feature: `StorageService` session CRUD and read operations (BP-26)

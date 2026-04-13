@@ -95,3 +95,67 @@ class TestValidateSessionContinuityAsync:
         with patch(_PATCH_TARGET, return_value=db_mock):
             with pytest.raises(ValueError, match="my-unique-session-id"):
                 await validate_session_continuity_async("my-unique-session-id", 3)
+
+
+@pytest.mark.unit
+class TestValidateSessionContinuityAsyncLenientMode:
+    """Tests for validate_session_continuity_async with raise_on_error=False."""
+
+    async def test_lenient_session_not_found_returns_404_dict(self):
+        """Missing session returns {"error": ..., "code": 404} instead of raising."""
+        db_mock = _make_db_mock(current_node_id=None)
+        with patch(_PATCH_TARGET, return_value=db_mock):
+            result = await validate_session_continuity_async(
+                "missing-session", 2, raise_on_error=False
+            )
+        assert result is not None
+        assert set(result.keys()) == {"error", "code"}
+        assert result["code"] == 404
+        assert "missing-session" in result["error"]
+        assert "not found" in result["error"]
+
+    async def test_lenient_out_of_order_returns_409_dict(self):
+        """Out-of-order node returns {"error": ..., "code": 409} instead of raising."""
+        db_mock = _make_db_mock(current_node_id=1)
+        with patch(_PATCH_TARGET, return_value=db_mock):
+            result = await validate_session_continuity_async(
+                "session-abc", 3, raise_on_error=False
+            )
+        assert result is not None
+        assert set(result.keys()) == {"error", "code"}
+        assert result["code"] == 409
+        assert "session-abc" in result["error"]
+        assert "node 1" in result["error"]
+        assert "requested node 3" in result["error"]
+
+    async def test_lenient_valid_continuation_returns_none(self):
+        """Valid continuation with raise_on_error=False returns None."""
+        db_mock = _make_db_mock(current_node_id=1)
+        with patch(_PATCH_TARGET, return_value=db_mock):
+            result = await validate_session_continuity_async(
+                "session-abc", 2, raise_on_error=False
+            )
+        assert result is None
+
+    async def test_lenient_first_node_returns_none(self):
+        """First node with raise_on_error=False returns None without touching DB."""
+        with patch(_PATCH_TARGET) as db_class_mock:
+            result = await validate_session_continuity_async(
+                "session-abc", 1, raise_on_error=False
+            )
+        assert result is None
+        db_class_mock.assert_not_called()
+
+    async def test_raising_mode_still_raises_on_not_found(self):
+        """Regression: default raise_on_error=True still raises on missing session."""
+        db_mock = _make_db_mock(current_node_id=None)
+        with patch(_PATCH_TARGET, return_value=db_mock):
+            with pytest.raises(ValueError, match="not found"):
+                await validate_session_continuity_async("missing-session", 2)
+
+    async def test_raising_mode_still_raises_on_out_of_order(self):
+        """Regression: default raise_on_error=True still raises on out-of-order."""
+        db_mock = _make_db_mock(current_node_id=1)
+        with patch(_PATCH_TARGET, return_value=db_mock):
+            with pytest.raises(ValueError, match="requested node 3"):
+                await validate_session_continuity_async("session-abc", 3)
