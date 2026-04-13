@@ -5,6 +5,7 @@ All tests run without a real API key — constructors are mocked and
 os.environ is patched where needed.
 """
 
+import importlib
 import os
 import sys
 import unittest
@@ -641,6 +642,51 @@ class TestGetLLMConfigSummaryExport(unittest.TestCase):
         import black_langcube
 
         self.assertIn("get_llm_config_summary", black_langcube.__all__)
+
+
+@pytest.mark.unit
+class TestGeminiApiKeyFallback:
+    """GEMINI_API_KEY falls back to GOOGLE_API_KEY when GEMINI_API_KEY is absent."""
+
+    @pytest.fixture(autouse=True)
+    def isolate_env(self, monkeypatch):
+        """Block load_dotenv from re-populating os.environ on each reload, then
+        restore the module attribute to its original value after the test."""
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **kw: False)
+        original = llm_model_module.GEMINI_API_KEY
+        yield
+        llm_model_module.GEMINI_API_KEY = original
+
+    def test_only_gemini_api_key_set(self, monkeypatch):
+        """When only GEMINI_API_KEY is set, it is resolved directly."""
+        monkeypatch.setenv("GEMINI_API_KEY", "gemini-only-value")
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        importlib.reload(llm_model_module)
+        assert isinstance(llm_model_module.GEMINI_API_KEY, SecretStr)
+        assert llm_model_module.GEMINI_API_KEY.get_secret_value() == "gemini-only-value"
+
+    def test_only_google_api_key_set(self, monkeypatch):
+        """When only GOOGLE_API_KEY is set, it is used as a fallback."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.setenv("GOOGLE_API_KEY", "google-only-value")
+        importlib.reload(llm_model_module)
+        assert isinstance(llm_model_module.GEMINI_API_KEY, SecretStr)
+        assert llm_model_module.GEMINI_API_KEY.get_secret_value() == "google-only-value"
+
+    def test_both_set_gemini_wins(self, monkeypatch):
+        """When both variables are set, GEMINI_API_KEY takes precedence."""
+        monkeypatch.setenv("GEMINI_API_KEY", "gemini-wins")
+        monkeypatch.setenv("GOOGLE_API_KEY", "google-loses")
+        importlib.reload(llm_model_module)
+        assert isinstance(llm_model_module.GEMINI_API_KEY, SecretStr)
+        assert llm_model_module.GEMINI_API_KEY.get_secret_value() == "gemini-wins"
+
+    def test_neither_set(self, monkeypatch):
+        """When neither variable is set, the result is None."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        importlib.reload(llm_model_module)
+        assert llm_model_module.GEMINI_API_KEY is None
 
 
 if __name__ == "__main__":

@@ -19,6 +19,12 @@ OPENAI_API_KEY / GEMINI_API_KEY / MISTRAL_API_KEY
     API keys for each provider.  Only the key for the active provider must
     be set.
 
+GOOGLE_API_KEY
+    Accepted as a fallback alias for ``GEMINI_API_KEY`` in the Gemini
+    provider.  When ``GEMINI_API_KEY`` is not set, ``GOOGLE_API_KEY`` is
+    used instead.  ``GEMINI_API_KEY`` always takes precedence when both
+    are present.
+
 <PROVIDER>_MODEL_<TIER>
     Override the model name for a specific provider/tier combination, e.g.
     ``OPENAI_MODEL_LOW=gpt-4o-mini``.
@@ -115,7 +121,9 @@ def _load_secret(env_var: str) -> SecretStr | None:
 
 
 OPENAI_API_KEY: SecretStr | None = _load_secret("OPENAI_API_KEY")
-GEMINI_API_KEY: SecretStr | None = _load_secret("GEMINI_API_KEY")
+GEMINI_API_KEY: SecretStr | None = _load_secret("GEMINI_API_KEY") or _load_secret(
+    "GOOGLE_API_KEY"
+)
 MISTRAL_API_KEY: SecretStr | None = _load_secret("MISTRAL_API_KEY")
 
 # ---------------------------------------------------------------------------
