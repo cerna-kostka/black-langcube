@@ -37,6 +37,12 @@ class CircuitBreakerOpenError(Exception):
     """Raised when a call is attempted while the circuit is OPEN."""
 
 
+#: Public alias — both names refer to the same exception class so that
+#: code using either ``CircuitBreakerError`` or ``CircuitBreakerOpenError``
+#: can catch it with a single ``except`` clause.
+CircuitBreakerError = CircuitBreakerOpenError
+
+
 class CircuitState(Enum):
     CLOSED = "CLOSED"
     OPEN = "OPEN"
@@ -191,6 +197,64 @@ def get_circuit_breaker(service_name: str) -> CircuitBreakerAsync:
     return _circuit_breaker_registry[service_name]
 
 
+async def get_circuit_breaker_async(service_name: str) -> CircuitBreakerAsync:
+    """Async accessor — return the singleton ``CircuitBreakerAsync`` for *service_name*.
+
+    .. note::
+        Declared ``async`` for API symmetry with the local
+        ``get_async_circuit_breaker(name)`` in Search4Science so that async
+        call sites can use a uniform ``await`` style.  The function itself
+        performs no I/O.
+
+    Equivalent to the sync :func:`get_circuit_breaker` with the same
+    creation-on-first-access semantics.  Useful in async call sites that prefer
+    a uniform ``await`` style throughout.
+
+    Args:
+        service_name: Logical name of the protected service (e.g. ``"openai_api"``).
+
+    Returns:
+        The ``CircuitBreakerAsync`` instance registered under *service_name*.
+        A new instance is created if none exists yet.
+    """
+    return get_circuit_breaker(service_name)
+
+
+def get_all_circuit_breakers() -> dict[str, CircuitBreakerAsync]:
+    """Return a shallow copy of the internal circuit-breaker registry.
+
+    Intended for test introspection and per-test isolation.  Callers receive
+    a **copy** of the registry mapping so that mutations to the returned dict
+    do not affect the live registry.
+
+    Returns:
+        A ``dict`` mapping service name → ``CircuitBreakerAsync`` instance for
+        every breaker that has been created so far.
+    """
+    return dict(_circuit_breaker_registry)
+
+
 def reset_all_circuit_breakers() -> None:
     """Clear all registered circuit breakers — for use in tests only."""
     _circuit_breaker_registry.clear()
+
+
+async def reset_circuit_breaker(name: str) -> None:
+    """Remove a single named circuit breaker from the registry.
+
+    .. note::
+        Declared ``async`` for API symmetry with the local
+        ``reset_all_async_circuit_breakers()`` in Search4Science so that async
+        test teardowns can ``await`` it without a special sync wrapper.  The
+        function itself performs no I/O.
+
+    After this call the named breaker is deregistered.  The next call to
+    :func:`get_circuit_breaker` or :func:`get_circuit_breaker_async` for the
+    same *name* will create a fresh instance.
+
+    If *name* is not currently registered the function does nothing (no-op).
+
+    Args:
+        name: The service name used when the breaker was registered.
+    """
+    _circuit_breaker_registry.pop(name, None)
