@@ -33,9 +33,13 @@ from black_langcube.llm_modules.circuit_breaker import (  # noqa: E402
 from black_langcube.llm_modules.circuit_breaker_async import (  # noqa: E402
     CircuitBreakerAsync,
     CircuitBreakerOpenError as AsyncCircuitBreakerOpenError,
+    CircuitBreakerError as AsyncCircuitBreakerError,
     CircuitState as AsyncCircuitState,
     get_circuit_breaker as async_get_circuit_breaker,
+    get_circuit_breaker_async,
+    get_all_circuit_breakers,
     reset_all_circuit_breakers as async_reset_all_circuit_breakers,
+    reset_circuit_breaker,
 )
 
 
@@ -608,6 +612,137 @@ class TestRobustInvokeCircuitBreaker(unittest.TestCase):
             self._invoke(chain, max_retries=1)
 
         self.assertEqual(cb.state, CircuitState.OPEN)
+
+
+# ---------------------------------------------------------------------------
+# New API tests: get_all_circuit_breakers, reset_circuit_breaker,
+# CircuitBreakerError alias, get_circuit_breaker_async
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestGetAllCircuitBreakers(unittest.TestCase):
+    def setUp(self):
+        async_reset_all_circuit_breakers()
+
+    def tearDown(self):
+        async_reset_all_circuit_breakers()
+
+    def test_returns_empty_dict_when_registry_is_empty(self):
+        result = get_all_circuit_breakers()
+        self.assertEqual(result, {})
+
+    def test_returns_registered_breakers(self):
+        cb_a = async_get_circuit_breaker("openai_api")
+        cb_b = async_get_circuit_breaker("gemini_api")
+        result = get_all_circuit_breakers()
+        self.assertIn("openai_api", result)
+        self.assertIn("gemini_api", result)
+        self.assertIs(result["openai_api"], cb_a)
+        self.assertIs(result["gemini_api"], cb_b)
+
+    def test_returns_copy_not_live_dict(self):
+        async_get_circuit_breaker("openai_api")
+        snapshot = get_all_circuit_breakers()
+        async_get_circuit_breaker("gemini_api")
+        # Mutating the returned copy does not add to the registry
+        snapshot["new_service"] = AsyncMock()
+        registry_after = get_all_circuit_breakers()
+        self.assertNotIn("new_service", registry_after)
+
+
+@pytest.mark.unit
+class TestResetCircuitBreaker(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        async_reset_all_circuit_breakers()
+
+    def tearDown(self):
+        async_reset_all_circuit_breakers()
+
+    async def test_removes_named_breaker(self):
+        async_get_circuit_breaker("openai_api")
+        await reset_circuit_breaker("openai_api")
+        registry = get_all_circuit_breakers()
+        self.assertNotIn("openai_api", registry)
+
+    async def test_does_not_affect_other_breakers(self):
+        async_get_circuit_breaker("openai_api")
+        cb_b = async_get_circuit_breaker("gemini_api")
+        await reset_circuit_breaker("openai_api")
+        registry = get_all_circuit_breakers()
+        self.assertNotIn("openai_api", registry)
+        self.assertIn("gemini_api", registry)
+        self.assertIs(registry["gemini_api"], cb_b)
+
+    async def test_noop_for_unknown_name(self):
+        async_get_circuit_breaker("openai_api")
+        # Should not raise
+        await reset_circuit_breaker("nonexistent_service")
+        registry = get_all_circuit_breakers()
+        self.assertIn("openai_api", registry)
+
+    async def test_next_get_creates_fresh_instance(self):
+        cb_before = async_get_circuit_breaker("openai_api")
+        await reset_circuit_breaker("openai_api")
+        cb_after = async_get_circuit_breaker("openai_api")
+        self.assertIsNot(cb_before, cb_after)
+
+
+@pytest.mark.unit
+class TestCircuitBreakerErrorAlias(unittest.IsolatedAsyncioTestCase):
+    def test_alias_is_same_class(self):
+        self.assertIs(AsyncCircuitBreakerError, AsyncCircuitBreakerOpenError)
+
+    def test_catch_with_open_error_name(self):
+        with self.assertRaises(AsyncCircuitBreakerOpenError):
+            raise AsyncCircuitBreakerOpenError("open")
+
+    def test_catch_with_error_alias_name(self):
+        with self.assertRaises(AsyncCircuitBreakerError):
+            raise AsyncCircuitBreakerOpenError("open")
+
+    def test_catch_open_error_via_alias_raise(self):
+        with self.assertRaises(AsyncCircuitBreakerOpenError):
+            raise AsyncCircuitBreakerError("open via alias")
+
+    async def test_circuit_raises_catchable_by_both_names(self):
+        cb = _make_async_breaker(threshold=1)
+        await cb.record_failure()
+        # Catch with CircuitBreakerOpenError
+        with self.assertRaises(AsyncCircuitBreakerOpenError):
+            async with cb.call():
+                pass  # pragma: no cover
+        # Catch with CircuitBreakerError alias
+        with self.assertRaises(AsyncCircuitBreakerError):
+            async with cb.call():
+                pass  # pragma: no cover
+
+
+@pytest.mark.unit
+class TestGetCircuitBreakerAsync(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        async_reset_all_circuit_breakers()
+
+    def tearDown(self):
+        async_reset_all_circuit_breakers()
+
+    async def test_returns_same_instance_as_sync_getter(self):
+        cb_sync = async_get_circuit_breaker("openai_api")
+        cb_async = await get_circuit_breaker_async("openai_api")
+        self.assertIs(cb_sync, cb_async)
+
+    async def test_returns_circuit_breaker_async_instance(self):
+        cb = await get_circuit_breaker_async("openai_api")
+        self.assertIsInstance(cb, CircuitBreakerAsync)
+
+    async def test_successive_calls_return_same_instance(self):
+        cb1 = await get_circuit_breaker_async("openai_api")
+        cb2 = await get_circuit_breaker_async("openai_api")
+        self.assertIs(cb1, cb2)
+
+    async def test_unknown_service_gets_default_config(self):
+        cb = await get_circuit_breaker_async("some_unknown_service")
+        self.assertIsInstance(cb, CircuitBreakerAsync)
 
 
 if __name__ == "__main__":

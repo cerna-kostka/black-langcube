@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.8] - 2026-04-13
+
+### Feature: circuit breaker API alignment — registry exposure, per-breaker reset, and exception alias (BP-28)
+
+- **`get_all_circuit_breakers() -> dict[str, CircuitBreakerAsync]`** added to `llm_modules/circuit_breaker_async.py`:
+  - Returns a shallow copy of the internal `_circuit_breaker_registry`, enabling test introspection without accessing private state.
+- **`async reset_circuit_breaker(name: str) -> None`** added to `llm_modules/circuit_breaker_async.py`:
+  - Removes a single named breaker from the registry; no-op if the name is not found.
+  - Complements the existing all-or-nothing `reset_all_circuit_breakers()`.
+- **`CircuitBreakerError`** alias introduced in `llm_modules/circuit_breaker_async.py`:
+  - Public alias for `CircuitBreakerOpenError`; both names refer to the exact same class and are interchangeable in `except` clauses.
+- **`async get_circuit_breaker_async(name: str) -> CircuitBreakerAsync`** added to `llm_modules/circuit_breaker_async.py`:
+  - Async accessor equivalent to the existing sync `get_circuit_breaker(name)`.  Returns the same singleton instance for the same name.
+- **`__init__.py` exports updated** — `CircuitBreakerAsync`, `CircuitBreakerOpenError`, `CircuitBreakerError`, `get_circuit_breaker_async`, `get_all_circuit_breakers`, `reset_all_circuit_breakers`, and `reset_circuit_breaker` are now importable directly from `black_langcube`.
+- **16 new tests** in `tests/test_circuit_breaker.py` across four new test classes:
+  - `TestGetAllCircuitBreakers` — empty registry, populated registry contents, copy semantics.
+  - `TestResetCircuitBreaker` — removes only the named breaker, leaves others intact, no-op for unknown names, fresh instance after reset.
+  - `TestCircuitBreakerErrorAlias` — alias identity, catching by both names, cross-raising.
+  - `TestGetCircuitBreakerAsync` — same instance as sync getter, successive calls, unknown service default config.
+- 287 unit tests now pass (including the 16 new ones added above).
+
+---
+
 ## [0.4.7] - 2026-04-13
 
 ### Feature: lenient (non-raising) mode for `validate_session_continuity_async` (BP-27)
