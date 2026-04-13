@@ -218,6 +218,36 @@ class DatabaseService:
             logger.error("DB write failed (update_session_status): %s", exc)
             return False
 
+    async def update_session(self, session_id: str, data: dict) -> bool:
+        """Merge *data* into the ``metadata_`` of an existing Session row.
+
+        The provided *data* dict is merged into the existing ``metadata_``
+        value (a shallow merge). If ``metadata_`` is currently ``None`` or not
+        a dict it is replaced by *data* directly.
+
+        Args:
+            session_id: The UUID string identifying the session.
+            data: Key/value pairs to merge into ``metadata_``.
+
+        Returns:
+            ``True`` on success, ``False`` when the session is not found or a
+            database error occurs.
+        """
+        assert self.session is not None
+        try:
+            obj = await self.get_session(session_id)
+            if obj is None:
+                logger.warning("update_session: session %r not found", session_id)
+                return False
+            existing = obj.metadata_ if isinstance(obj.metadata_, dict) else {}
+            obj.metadata_ = sanitize_json_data({**existing, **data})
+            self.session.add(obj)
+            await self.session.flush()
+            return True
+        except SQLAlchemyError as exc:
+            logger.error("DB write failed (update_session): %s", exc)
+            return False
+
     # ------------------------------------------------------------------
     # GraphOutput operations
     # ------------------------------------------------------------------
@@ -254,6 +284,72 @@ class DatabaseService:
         except SQLAlchemyError as exc:
             logger.error("DB write failed (save_graph_output): %s", exc)
             return False
+
+    async def get_graph_output(self, session_id: str, graph_name: str) -> dict | None:
+        """Return the data dict from the most recent GraphOutput row.
+
+        Args:
+            session_id: UUID of the owning session.
+            graph_name: Name of the graph whose output to retrieve.
+
+        Returns:
+            The ``data`` dict from the matching row, or ``None`` if no row
+            exists for the given session and graph name.
+
+        Raises:
+            SQLAlchemyError: Re-raised on database errors so callers can
+                distinguish a missing record (``None`` return) from a DB
+                connectivity or query failure (raised exception).
+        """
+        assert self.session is not None
+        try:
+            stmt = (
+                select(GraphOutput)
+                .where(
+                    GraphOutput.session_id == session_id,
+                    GraphOutput.graph_name == graph_name,
+                )
+                .order_by(GraphOutput.created_at.desc())
+                .limit(1)
+            )
+            result = await self.session.execute(stmt)
+            row = result.scalar_one_or_none()
+            if row is None or row.data is None:
+                return None
+            return dict(row.data)
+        except SQLAlchemyError as exc:
+            logger.error("DB read failed (get_graph_output): %s", exc)
+            raise
+
+    async def get_output_files(self, session_id: str) -> list[str]:
+        """Return logical graph-name identifiers for all outputs in a session.
+
+        In database mode this returns the distinct ``graph_name`` values of
+        every :class:`GraphOutput` row belonging to *session_id*. These are
+        logical identifiers, not file-system paths — callers that need actual
+        files should use the ``file`` storage mode.
+
+        Args:
+            session_id: UUID of the owning session.
+
+        Returns:
+            A (possibly empty) list of distinct ``graph_name`` strings.
+
+        Raises:
+            SQLAlchemyError: Re-raised on database errors.
+        """
+        assert self.session is not None
+        try:
+            stmt = (
+                select(GraphOutput.graph_name)
+                .where(GraphOutput.session_id == session_id)
+                .distinct()
+            )
+            result = await self.session.execute(stmt)
+            return [row[0] for row in result.fetchall()]
+        except SQLAlchemyError as exc:
+            logger.error("DB read failed (get_output_files): %s", exc)
+            raise
 
     # ------------------------------------------------------------------
     # NodeOutput operations

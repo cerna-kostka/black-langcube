@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.6] - 2026-04-13
+
+### Feature: `StorageService` session CRUD and read operations (BP-26)
+
+- **`DatabaseService` new read/update methods** in `database/operations.py`:
+  - `update_session(session_id, data)` — shallow-merges *data* into the session's `metadata_` column.
+  - `get_graph_output(session_id, graph_name)` — returns the `data` dict from the most recent `GraphOutput` row for the given session + graph combination, or `None` if none exists.
+  - `get_output_files(session_id)` — returns a list of distinct `graph_name` values for all `GraphOutput` rows belonging to a session.
+- **`StorageService` session lifecycle methods** in `storage_service.py`:
+  - `create_session(session_id, metadata)` — creates a session record (file: `{base_dir}/{session_id}/session.json`; database: delegates to `DatabaseService`; dual: DB-first with file fallback).
+  - `get_session(session_id)` — returns a `dict | None` representing the session (dual: DB-first, falls back to file on exception).
+  - `update_session(session_id, data)` — merges `data` into the session's metadata (dual: DB-first with file fallback).
+- **`StorageService` output retrieval methods** in `storage_service.py`:
+  - `get_graph_output(session_id, graph_name)` — reads output previously saved by `save_graph_output` (file: `{base_dir}/{session_id}/{graph_name}_output.json`; dual: DB-first with file fallback).
+  - `get_output_files(session_id)` — lists output identifiers: absolute `.json` paths in `file` mode, distinct `graph_name` strings in `database` mode.
+- **`base_dir` parameter on `StorageService`** — constructor now accepts an optional `base_dir` (defaults to `STORAGE_BASE_DIR` env var, then `os.getcwd()`) used by all file-mode session and read operations.
+- **Module-level singleton accessor**:
+  - `get_storage_service()` — returns a shared `StorageService` singleton, created lazily on first call.
+  - `set_storage_service(instance)` — replaces the singleton, enabling dependency injection and test overrides without monkey-patching module globals.
+- **36 new tests** in `tests/test_storage_service_crud.py` covering all new methods across all three storage modes, dual-mode fallback paths, and the singleton accessor.
+- All existing 276 tests continue to pass without modification.
+
+---
+
 ## [0.4.5] - 2026-04-12
 
 ### Feature: overridable `save_events_to_database()` hook on `BaseGraph` (BP-25)
