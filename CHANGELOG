@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.10] - 2026-04-13
+
+### Feature: `GOOGLE_API_KEY` as a fallback alias for `GEMINI_API_KEY` (BP-30)
+
+- **Fallback key resolution** added to `llm_modules/llm_model.py`:
+  - `GEMINI_API_KEY` is now resolved as `_load_secret("GEMINI_API_KEY") or _load_secret("GOOGLE_API_KEY")`.
+  - `GEMINI_API_KEY` always takes precedence; `GOOGLE_API_KEY` is consulted only when `GEMINI_API_KEY` is absent.
+  - All other provider key-resolution paths (OpenAI, Mistral) are unchanged.
+- **Module docstring updated** — `GOOGLE_API_KEY` documented as an accepted alias in the *Environment variables* section.
+- **4 new tests** in `tests/test_llm_model.py` (`TestGeminiApiKeyFallback`):
+  - Only `GEMINI_API_KEY` set → resolved from `GEMINI_API_KEY`.
+  - Only `GOOGLE_API_KEY` set → resolved from `GOOGLE_API_KEY`.
+  - Both set → `GEMINI_API_KEY` wins.
+  - Neither set → key is `None`.
+- 303 unit tests now pass (including the 4 new ones added above).
+
+---
+
 ## [0.4.9] - 2026-04-13
 
 ### Feature: DB-aware result retrieval in `get_result_from_graph_outputs_async` (BP-29)
