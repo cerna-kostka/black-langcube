@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.9] - 2026-04-13
+
+### Feature: DB-aware result retrieval in `get_result_from_graph_outputs_async` (BP-29)
+
+- **Optional `storage_service` parameter** added to `get_result_from_graph_outputs_async()` and `get_simple_result_from_graph_outputs_async()` in `helper_modules/get_result_from_graph_outputs.py`:
+  - When `subfolder_name` is provided the existing filesystem path is used (unchanged behaviour).
+  - When `subfolder_name` is `None` and `storage_service` is supplied, `await storage_service.get_graph_output(filename)` is called and its result returned.
+  - When both are absent the function returns `{"error": "subfolder_name is not set."}` — identical to the previous behaviour.
+- **Duck-typed `storage_service` interface** documented in both async function docstrings: callers must supply an object implementing `async def get_graph_output(self, filename: str) -> Any`. The session context (e.g. `session_id`) is expected to be encapsulated within the service instance.
+- **Backward-compatible**: `storage_service` defaults to `None`; all existing call sites continue to work without modification.
+- **Synchronous variants unchanged**: `get_result_from_graph_outputs()` and `get_simple_result_from_graph_outputs()` are not modified.
+- **12 new tests** in `tests/test_get_result_from_graph_outputs.py` across two test classes:
+  - `TestGetResultFromGraphOutputsAsync` — file path taken when subfolder set (storage_service ignored), file path without storage_service, DB path when subfolder None, error dict when neither provided, storage_service errors propagate, backward-compatible positional call.
+  - `TestGetSimpleResultFromGraphOutputsAsync` — same six scenarios for the simple variant.
+- 299 unit tests now pass (including the 12 new ones added above).
+
+---
+
 ## [0.4.8] - 2026-04-13
 
 ### Feature: circuit breaker API alignment — registry exposure, per-breaker reset, and exception alias (BP-28)

@@ -150,22 +150,107 @@ def get_simple_result_from_graph_outputs(key, subfolder_name, filename):
 
 
 async def get_result_from_graph_outputs_async(
-    key1, key2, subkey, subsubkey, subfolder_name, filename
+    key1, key2, subkey, subsubkey, subfolder_name, filename, *, storage_service=None
 ):
-    """Async version of get_result_from_graph_outputs. Delegates to a thread pool executor."""
-    return await asyncio.to_thread(
-        get_result_from_graph_outputs,
-        key1,
-        key2,
-        subkey,
-        subsubkey,
-        subfolder_name,
-        filename,
-    )
+    """Async version of get_result_from_graph_outputs with optional database fallback.
+
+    When ``subfolder_name`` is provided the function reads the result from the
+    filesystem (same behaviour as the synchronous variant, offloaded to a thread
+    pool so the event loop is not blocked).
+
+    When ``subfolder_name`` is ``None`` and a ``storage_service`` is supplied the
+    function delegates to ``await storage_service.get_graph_output(filename)`` and
+    returns whatever that coroutine resolves to.  The ``storage_service`` is
+    expected to implement the following duck-typed interface::
+
+        class StorageService:
+            async def get_graph_output(self, filename: str) -> Any:
+                \"\"\"Return the stored graph output identified by *filename*.
+
+                The session context (e.g. session_id) is expected to be
+                encapsulated within the service instance itself.
+                \"\"\"
+
+    When neither ``subfolder_name`` nor ``storage_service`` is provided the
+    function returns ``{"error": "subfolder_name is not set."}`` — identical to
+    the existing synchronous behaviour.
+
+    Args:
+        key1 (str): The primary key to search for in the JSON objects.
+        key2 (str): The secondary key to search for in the JSON objects.
+        subkey (str): The subkey to search for within the data of ``key1`` or ``key2``.
+        subsubkey (str): The sub-subkey within ``key2[subkey]``.
+        subfolder_name (str | None): Subfolder containing the file.  Pass ``None``
+            to skip filesystem access and fall back to ``storage_service``.
+        filename (str): Name of the file / graph-output identifier.
+        storage_service (optional): An object with an async
+            ``get_graph_output(filename)`` method used when ``subfolder_name`` is
+            ``None``.  Defaults to ``None`` (file-only mode, existing behaviour).
+
+    Returns:
+        Any: The extracted value, a result from ``storage_service``, or an error
+        dict when the data cannot be found.
+    """
+    if subfolder_name:
+        return await asyncio.to_thread(
+            get_result_from_graph_outputs,
+            key1,
+            key2,
+            subkey,
+            subsubkey,
+            subfolder_name,
+            filename,
+        )
+    if storage_service is not None:
+        return await storage_service.get_graph_output(filename)
+    logger.error("subfolder_name is not set.")
+    return {"error": "subfolder_name is not set."}
 
 
-async def get_simple_result_from_graph_outputs_async(key, subfolder_name, filename):
-    """Async version of get_simple_result_from_graph_outputs. Delegates to a thread pool executor."""
-    return await asyncio.to_thread(
-        get_simple_result_from_graph_outputs, key, subfolder_name, filename
-    )
+async def get_simple_result_from_graph_outputs_async(
+    key, subfolder_name, filename, *, storage_service=None
+):
+    """Async version of get_simple_result_from_graph_outputs with optional database fallback.
+
+    When ``subfolder_name`` is provided the function reads the result from the
+    filesystem (same behaviour as the synchronous variant, offloaded to a thread
+    pool so the event loop is not blocked).
+
+    When ``subfolder_name`` is ``None`` and a ``storage_service`` is supplied the
+    function delegates to ``await storage_service.get_graph_output(filename)`` and
+    returns whatever that coroutine resolves to.  The ``storage_service`` is
+    expected to implement the following duck-typed interface::
+
+        class StorageService:
+            async def get_graph_output(self, filename: str) -> Any:
+                \"\"\"Return the stored graph output identified by *filename*.
+
+                The session context (e.g. session_id) is expected to be
+                encapsulated within the service instance itself.
+                \"\"\"
+
+    When neither ``subfolder_name`` nor ``storage_service`` is provided the
+    function returns ``{"error": "subfolder_name is not set."}`` — identical to
+    the existing synchronous behaviour.
+
+    Args:
+        key (str): The key to search for in each JSON object.
+        subfolder_name (str | None): Subfolder containing the file.  Pass ``None``
+            to skip filesystem access and fall back to ``storage_service``.
+        filename (str): Name of the file / graph-output identifier.
+        storage_service (optional): An object with an async
+            ``get_graph_output(filename)`` method used when ``subfolder_name`` is
+            ``None``.  Defaults to ``None`` (file-only mode, existing behaviour).
+
+    Returns:
+        Any: The extracted value, a result from ``storage_service``, or an error
+        dict when the data cannot be found.
+    """
+    if subfolder_name:
+        return await asyncio.to_thread(
+            get_simple_result_from_graph_outputs, key, subfolder_name, filename
+        )
+    if storage_service is not None:
+        return await storage_service.get_graph_output(filename)
+    logger.error("subfolder_name is not set.")
+    return {"error": "subfolder_name is not set."}
