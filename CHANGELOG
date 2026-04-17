@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.12] - 2026-04-17
+
+### Feature: `py.typed` marker and PEP 561 compliance (BP-39)
+
+- **`src/black_langcube/py.typed`** added — empty marker file that signals to
+  mypy, pyright, and pylance that `black_langcube` ships inline type
+  annotations and does not require separate stub files.
+- **`pyproject.toml` updated**:
+  - `[tool.setuptools.package-data]` entry ensures `py.typed` is bundled into
+    the wheel and sdist.
+  - `"Typing :: Typed"` classifier added.
+  - Version bumped to `0.4.12`.
+- **`README.md`** — new *Type Checking (PEP 561)* section documents mypy
+  compatibility and the absence of `ignore_missing_imports` overrides.
+- **3 new tests** in `tests/test_py_typed.py`:
+  - `py.typed` is accessible via the installed package path.
+  - `py.typed` is an empty file (PEP 561 §5).
+  - `py.typed` exists in the source tree.
+
+---
+
 ## [0.4.11] - 2026-04-13
 
 ### Performance: cache tiktoken encoder at module level in `check_tokens` (BP-31)

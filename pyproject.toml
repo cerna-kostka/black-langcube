@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "black_langcube"
-version = "0.4.11"
+version = "0.4.12"
 description = "A LangGraph-based extension framework for complex workflow applications, enabling the integration of various AI models and tools into a cohesive system."
 readme = "README.md"
 license = "MIT"
@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
 ]
 keywords = ["langgraph", "workflow", "llm", "langchain", "ai"]
 requires-python = ">=3.9"
@@ -79,6 +80,9 @@ Issues = "https://github.com/cerna-kostka/black-langcube/issues"
 where = ["src"]
 include = ["black_langcube*"]
 exclude = ["tests*", "examples*"]
+
+[tool.setuptools.package-data]
+black_langcube = ["py.typed"]
 
 [tool.setuptools.package-dir]
 "" = "src"
