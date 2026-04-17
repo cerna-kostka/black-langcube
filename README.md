@@ -365,6 +365,19 @@ See the `examples/` directory for complete working examples:
 - **Scientific Article Processing**: Complex multi-step analysis pipeline
 - **Custom Data Structures**: Extending the framework with your own models
 
+## 🔬 Type Checking (PEP 561)
+
+`black_langcube` ships a `py.typed` marker file (PEP 561) so that mypy,
+pyright, and pylance can discover the package's inline type annotations without
+requiring separate stub files.
+
+```bash
+mypy --strict your_project/
+```
+
+No `ignore_missing_imports` overrides for `black_langcube.*` are needed in
+your `mypy` configuration.
+
 ## 🧪 Development
 
 ### Setting up development environment:
