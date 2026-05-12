@@ -11,6 +11,40 @@ A LangGraph-based extension framework designed to facilitate the development of 
 - **Subgraph System**: Modular subworkflows for translation, output generation, and specialized tasks
 - **Extensible Architecture**: Easy to extend with custom nodes and workflows
 
+## ⚖️ Black LangCube vs LangGraph
+
+LangGraph is a powerful low-level graph execution engine. Black LangCube builds on top of it and adds the production-ready layer that LangGraph deliberately leaves to the application developer.
+
+| Capability | LangGraph | Black LangCube |
+|---|---|---|
+| Graph construction & execution | ✅ Core feature | ✅ Inherited via `BaseGraph` |
+| Boilerplate for compile / stream / serialize | ❌ Manual every time | ✅ Handled by `BaseGraph` |
+| Pre-built LLM node abstraction | ❌ | ✅ `LLMNode` base class |
+| Multi-provider LLM routing (OpenAI / Gemini / Mistral) | ❌ | ✅ Per-step `{STEP}_PROVIDER` env overrides |
+| Rate-limit backoff & retry logic | ❌ | ✅ `robust_invoke` / `robust_invoke_async` |
+| Circuit breaker for LLM API calls | ❌ | ✅ Sync + async `CircuitBreaker` |
+| One-line parallel fan-out (scatter-gather) | Requires manual `Send` wiring | ✅ `add_parallel_nodes()` |
+| Pipeline-level concurrency | ❌ | ✅ `run_parallel_pipeline()` |
+| Output storage abstraction (file / DB / dual) | ❌ | ✅ `StorageService` |
+| Async SQLAlchemy ORM storage | ❌ | ✅ `DatabaseService` + session tracking |
+| Fail-fast configuration validation | ❌ | ✅ `validate_config()` |
+| Token counting & budget utilities | ❌ | ✅ Built-in token counter module |
+| Reusable translation subgraphs | ❌ | ✅ `subgrafs/` module |
+| Pydantic domain data structures | ❌ | ✅ `Article`, `Strategies`, `Outline`, … |
+| PEP 561 typed package | N/A | ✅ `py.typed` marker shipped |
+
+### Why this matters in practice
+
+**Zero boilerplate per workflow.** With plain LangGraph you repeat `StateGraph` construction, `compile()`, `astream()` iteration, JSON serialisation, and file/DB writes in every graph class. `BaseGraph` encapsulates all of that so you only declare `build_graph()` and `workflow_name`.
+
+**Resilient LLM calls out of the box.** Production workloads hit rate limits and transient API errors constantly. The built-in circuit breaker trips after configurable consecutive failures and prevents cascading wait queues, while `robust_invoke` automatically backs off on `429 / 503` responses — none of this exists in LangGraph itself.
+
+**Provider flexibility without code changes.** Switch from OpenAI to Gemini for cost-sensitive steps — or mix providers per pipeline step — purely through environment variables. No code refactoring required.
+
+**Parallel execution made simple.** LangGraph's `Send` API is powerful but requires careful manual wiring. `add_parallel_nodes()` reduces a scatter-gather pattern to a single method call. `run_parallel_pipeline()` extends that to entire independent graph instances.
+
+**Integrated persistence layer.** LangGraph ships no storage layer for final outputs. `StorageService` writes results to timestamped file folders, an async SQLAlchemy database, or both simultaneously — switchable at runtime via a single environment variable.
+
 ## 📦 Installation
 
 ### From PyPI (when published):
